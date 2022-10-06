@@ -5,7 +5,7 @@ import (
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	_ "github.com/pingcap/tidb/parser/test_driver"
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/connector"
+	"github.com/qaqcatz/impomysql/connector"
 	"io/ioutil"
 	"strconv"
 	"time"

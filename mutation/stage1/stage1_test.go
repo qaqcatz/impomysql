@@ -1,8 +1,8 @@
 package stage1
 
 import (
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/sqlfexecutor"
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/testsqls"
+	"github.com/qaqcatz/impomysql/sqlfexecutor"
+	"github.com/qaqcatz/impomysql/testsqls"
 	"io/ioutil"
 	"strconv"
 	"testing"

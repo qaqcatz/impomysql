@@ -1,13 +1,13 @@
 package learnast
 
 import (
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/testsqls"
+	"github.com/qaqcatz/impomysql/testsqls"
 	"testing"
 )
 
 // init
 func TestLearnAST(t *testing.T) {
-	if err := testsqls.InitDBTEST(); err != nil {
+	if err := testsqls.EnsureDBTEST(); err != nil {
 		t.Fatal(err.Error())
 	}
 	if err := testsqls.InitTableCOMPANY(); err != nil {

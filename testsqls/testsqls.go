@@ -3,7 +3,7 @@ package testsqls
 import (
 	"errors"
 	"fmt"
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/connector"
+	"github.com/qaqcatz/impomysql/connector"
 	"io/ioutil"
 	"path"
 	"runtime"

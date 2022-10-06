@@ -1,4 +1,4 @@
-module github.com/qaqcatz/IMPOMySQL
+module github.com/qaqcatz/impomysql
 
 go 1.16
 

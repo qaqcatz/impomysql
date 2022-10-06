@@ -1,7 +1,7 @@
 package sqlfexecutor
 
 import (
-	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/testsqls"
+	"github.com/qaqcatz/impomysql/testsqls"
 	"io/ioutil"
 	"testing"
 )
