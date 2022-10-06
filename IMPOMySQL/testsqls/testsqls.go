@@ -1,8 +1,12 @@
 package testsqls
 
 import (
+	"errors"
 	"fmt"
 	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/connector"
+	"io/ioutil"
+	"path"
+	"runtime"
 )
 
 // sudo docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql
@@ -112,3 +116,30 @@ const (
 	SQLSubQuery3 = "SELECT * FROM COMPANY WHERE ID NOT IN (SELECT ID FROM COMPANY WHERE ID IN (1, 2))"
 	SQLSubQuery4 = "SELECT * FROM COMPANY WHERE ID > ALL (SELECT ID FROM COMPANY WHERE ID <= 1)"
 )
+
+// sql file benchmark:
+
+const (
+	SQLFileTest = "test.sql"
+	SQLFileAgg = "agg.sql"
+	SQLFileWindow = "window.sql"
+)
+
+// ReadSQLFile: read the sql file under testsqls with the help of runtime.Caller().
+//
+// The third return value is the absolute filepath,
+// you can use it to get the actual location of the file
+func ReadSQLFile(sqlFileName string) ([]byte, error, string) {
+	if _, file, _, ok := runtime.Caller(0); !ok {
+		return nil, errors.New("ReadSQLFile: runtime.Caller(0) error "), ""
+	} else {
+		sqlFilePath := path.Join(file, "../", sqlFileName)
+		data, err := ioutil.ReadFile(sqlFilePath)
+		if err != nil {
+			return nil, errors.New("ReadSQLFile: read " + sqlFilePath + " error: " + err.Error()), ""
+		}
+		return data, nil, sqlFilePath
+	}
+}
+
+

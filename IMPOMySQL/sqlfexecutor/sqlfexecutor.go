@@ -7,6 +7,7 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/connector"
 	"io/ioutil"
+	"strconv"
 	"time"
 )
 
@@ -19,6 +20,29 @@ type SQLFExecutor struct {
 	ExecuteTime time.Duration // total execute time
 	PassedSQLNum int // the number of passed sql
 	FailedSQLNum int // the number of failed sql
+}
+
+func (sqlFExecutor *SQLFExecutor) ToString() string {
+	str := ""
+	if sqlFExecutor.ASTs == nil || len(sqlFExecutor.ASTs) == 0 {
+		return str + "|ASTs| = 0"
+	}
+	str += "|ASTs|: " + strconv.Itoa(len(sqlFExecutor.ASTs)) + "\n"
+	str += "Read Time: " + sqlFExecutor.ReadTime.String() + "\n"
+	str += "Parse Time: " +  sqlFExecutor.ParseTime.String()
+	if sqlFExecutor.Results == nil || len(sqlFExecutor.Results) == 0 {
+		return str + "\n|Results| = 0"
+	}
+	str += "\nExec Time: " + sqlFExecutor.ExecuteTime.String() + "\n"
+	str += "Passed SQL Num: " + strconv.Itoa(sqlFExecutor.PassedSQLNum) + "\n"
+	str += "Failed SQL Num: " + strconv.Itoa(sqlFExecutor.FailedSQLNum)
+	for i, result := range sqlFExecutor.Results {
+		str += "\n==================================================\n"
+		str += "[sql "+strconv.Itoa(i)+"]: " + sqlFExecutor.ASTs[i].Text() + "\n"
+		str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
+		str += "=================================================="
+	}
+	return str
 }
 
 func NewSQLFExecutor(filePath string) (*SQLFExecutor, error) {
