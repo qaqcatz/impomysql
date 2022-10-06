@@ -19,13 +19,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	result := conn.ExecSQL("DROP DATABASE IF EXISTS TEST")
-	if result.Err != nil {
-		t.Fatal(result.Err.Error())
-	} else {
-		t.Log(result.ToString())
-	}
-	result = conn.ExecSQL("CREATE DATABASE TEST")
+	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS TEST")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())
 	} else {
@@ -44,7 +38,7 @@ func TestConnector_ExecSQL2(t *testing.T) {
 	} else {
 		t.Log(result.ToString())
 	}
-	result = conn.ExecSQL("CREATE TABLE IF NOT EXISTS T(ID INT, NAME TEXT)")
+	result = conn.ExecSQL("CREATE TABLE T(ID INT, NAME TEXT)")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())
 	} else {

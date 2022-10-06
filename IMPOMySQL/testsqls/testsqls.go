@@ -37,6 +37,20 @@ func InitDBTEST() error {
 	return nil
 }
 
+// InitDBTEST:
+//   CREATE DATABASE IF NOT EXISTS TEST
+func EnsureDBTEST() error {
+	conn, err := connector.NewConnector(host, port, username, password, "")
+	if err != nil {
+		return err
+	}
+	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS TEST " + dbname)
+	if result.Err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetConnector() (*connector.Connector, error) {
 	conn, err := connector.NewConnector(host, port, username, password, dbname)
 	if err != nil {
@@ -120,9 +134,10 @@ const (
 // sql file benchmark:
 
 const (
-	SQLFileTest = "test.sql"
-	SQLFileAgg = "agg.sql"
-	SQLFileWindow = "window.sql"
+	SQLFileQuote = "quote"
+	SQLFileTest = "test"
+	SQLFileAgg = "agg"
+	SQLFileWindow = "window"
 )
 
 // ReadSQLFile: read the sql file under testsqls with the help of runtime.Caller().
@@ -130,6 +145,7 @@ const (
 // The third return value is the absolute filepath,
 // you can use it to get the actual location of the file
 func ReadSQLFile(sqlFileName string) ([]byte, error, string) {
+	sqlFileName += ".sql"
 	if _, file, _, ok := runtime.Caller(0); !ok {
 		return nil, errors.New("ReadSQLFile: runtime.Caller(0) error "), ""
 	} else {

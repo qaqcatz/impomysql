@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// init
 func TestLearnAST(t *testing.T) {
 	if err := testsqls.InitDBTEST(); err != nil {
 		t.Fatal(err.Error())
@@ -14,100 +15,48 @@ func TestLearnAST(t *testing.T) {
 	}
 }
 
-func TestLearnAST2(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLAGG); err != nil {
+func testLearnASTCommon(t *testing.T, sql string) {
+	if err := testsqls.SQLExec(sql); err != nil {
 		t.Fatal(err.Error())
 	}
-	if sql, err := learnAST(testsqls.SQLAGG); err != nil {
+	if sql, err := learnAST(sql); err != nil {
 		t.Fatal(err.Error())
 	} else {
 		t.Log(sql)
 	}
+}
+
+func TestLearnAST2(t *testing.T) {
+	testLearnASTCommon(t, testsqls.SQLAGG);
 }
 
 func TestLearnAST3(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLWindow); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLWindow); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLWindow);
 }
 
 func TestLearnAST4(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSelectValue); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSelectValue); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSelectValue);
 }
 func TestLearnAST5(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSelectValue2); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSelectValue2); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSelectValue2);
 }
 
 func TestLearnAST6(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSelectValue3); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSelectValue3); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSelectValue3);
 }
 
 func TestLearnAST7(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSubQuery); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSubQuery); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSubQuery);
 }
 
 func TestLearnAST8(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSubQuery2); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSubQuery2); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSubQuery2);
 }
 
 func TestLearnAST9(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSubQuery3); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSubQuery3); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSubQuery3);
 }
 
 func TestLearnAST10(t *testing.T) {
-	if err := testsqls.SQLExec(testsqls.SQLSubQuery4); err != nil {
-		t.Fatal(err.Error())
-	}
-	if sql, err := learnAST(testsqls.SQLSubQuery4); err != nil {
-		t.Fatal(err.Error())
-	} else {
-		t.Log(sql)
-	}
+	testLearnASTCommon(t, testsqls.SQLSubQuery4);
 }
