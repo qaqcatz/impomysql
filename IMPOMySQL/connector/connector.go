@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"strconv"
 	"time"
 )
@@ -18,7 +19,7 @@ type Connector struct {
 func NewConnector(host string, port int, username string, password string, dbname string) (*Connector, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
 		username, password, host, port, dbname)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		return nil, errors.New("NewConnector: create Connector error: " + err.Error())
 	}

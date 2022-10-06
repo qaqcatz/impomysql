@@ -1,4 +1,4 @@
-package mutation
+package learnast
 
 import (
 	"github.com/qaqcatz/IMPOMySQL/IMPOMySQL/testsqls"
