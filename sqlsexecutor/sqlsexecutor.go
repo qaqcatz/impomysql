@@ -1,4 +1,4 @@
-package sqlfexecutor
+package sqlsexecutor
 
 import (
 	"errors"
@@ -22,8 +22,8 @@ func (parseError *ParseError) ToString() string {
 	return "[parse error "+strconv.Itoa(parseError.Id)+"] "+parseError.Sql+"\n[error message] " + parseError.Err.Error()
 }
 
-// SQLFExecutor: Read .sql file(MySQL) file, parse each sql to ast, execute them, get the results
-type SQLFExecutor struct {
+// SQLSExecutor: Read .sql file(MySQL) file or sqls []string, parse each sql to ast, execute them, get the results
+type SQLSExecutor struct {
 	ParseErrs []*ParseError // some sql statements may have syntax error
 	ASTs []ast.StmtNode
 	Results []*connector.Result
@@ -34,31 +34,31 @@ type SQLFExecutor struct {
 	FailedSQLNum int // the number of failed sql
 }
 
-func (sqlFExecutor *SQLFExecutor) ToString() string {
+func (sqlsExecutor *SQLSExecutor) ToString() string {
 	str := ""
-	if sqlFExecutor.ParseErrs != nil && len(sqlFExecutor.ParseErrs) != 0 {
-		str += "|Parse error|: " + strconv.Itoa(len(sqlFExecutor.ParseErrs)) + "\n"
+	if sqlsExecutor.ParseErrs != nil && len(sqlsExecutor.ParseErrs) != 0 {
+		str += "|Parse error|: " + strconv.Itoa(len(sqlsExecutor.ParseErrs)) + "\n"
 		str += "========================================\n"
-		for _, parseError := range sqlFExecutor.ParseErrs {
+		for _, parseError := range sqlsExecutor.ParseErrs {
 			str += parseError.ToString() + "\n"
 		}
 		str += "========================================\n"
 	}
-	if sqlFExecutor.ASTs == nil || len(sqlFExecutor.ASTs) == 0 {
+	if sqlsExecutor.ASTs == nil || len(sqlsExecutor.ASTs) == 0 {
 		return str + "|ASTs| = 0"
 	}
-	str += "|ASTs|: " + strconv.Itoa(len(sqlFExecutor.ASTs)) + "\n"
-	str += "Read Time: " + sqlFExecutor.ReadTime.String() + "\n"
-	str += "Parse Time: " +  sqlFExecutor.ParseTime.String()
-	if sqlFExecutor.Results == nil || len(sqlFExecutor.Results) == 0 {
+	str += "|ASTs|: " + strconv.Itoa(len(sqlsExecutor.ASTs)) + "\n"
+	str += "Read Time: " + sqlsExecutor.ReadTime.String() + "\n"
+	str += "Parse Time: " +  sqlsExecutor.ParseTime.String()
+	if sqlsExecutor.Results == nil || len(sqlsExecutor.Results) == 0 {
 		return str + "\n|Results| = 0"
 	}
-	str += "\nExec Time: " + sqlFExecutor.ExecuteTime.String() + "\n"
-	str += "Passed SQL Num: " + strconv.Itoa(sqlFExecutor.PassedSQLNum) + "\n"
-	str += "Failed SQL Num: " + strconv.Itoa(sqlFExecutor.FailedSQLNum)
-	for i, result := range sqlFExecutor.Results {
+	str += "\nExec Time: " + sqlsExecutor.ExecuteTime.String() + "\n"
+	str += "Passed SQL Num: " + strconv.Itoa(sqlsExecutor.PassedSQLNum) + "\n"
+	str += "Failed SQL Num: " + strconv.Itoa(sqlsExecutor.FailedSQLNum)
+	for i, result := range sqlsExecutor.Results {
 		str += "\n==================================================\n"
-		str += "[sql "+strconv.Itoa(i)+"]: " + sqlFExecutor.ASTs[i].Text() + "\n"
+		str += "[sql "+strconv.Itoa(i)+"]: " + sqlsExecutor.ASTs[i].Text() + "\n"
 		str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
 		str += "=================================================="
 	}
@@ -115,24 +115,31 @@ func ExtractSQL(s string) []string {
 	return res
 }
 
-func NewSQLFExecutor(filePath string) (*SQLFExecutor, error) {
+// NewSQLSExecutor: create SQLSExecutor from .sql file
+func NewSQLSExecutor(filePath string) (*SQLSExecutor, error) {
 	startTime := time.Now()
 	sqls, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return nil, errors.New("NewSQLFExecutor: read sqls file error: " + err.Error())
+		return nil, errors.New("NewSQLSExecutor: read sqls file error: " + err.Error())
 	}
 	readTime := time.Since(startTime)
-	sqlFExecutor, err := NewSQLFExecutorB(sqls)
+	sqlSExecutor, err := NewSQLSExecutorB(sqls)
 	if err != nil {
-		return nil, errors.New("NewSQLFExecutor: " + err.Error())
+		return nil, errors.New("NewSQLSExecutor: " + err.Error())
 	}
-	sqlFExecutor.ReadTime = readTime
-	return sqlFExecutor, nil
+	sqlSExecutor.ReadTime = readTime
+	return sqlSExecutor, nil
 }
 
-func NewSQLFExecutorB(sqlBytes []byte) (*SQLFExecutor, error) {
-	startTime := time.Now()
+// NewSQLSExecutorB: create SQLSExecutor from bytes
+func NewSQLSExecutorB(sqlBytes []byte) (*SQLSExecutor, error) {
 	sqls := ExtractSQL(string(sqlBytes))
+	return NewSQLSExecutorS(sqls)
+}
+
+// NewSQLSExecutorS: create SQLSExecutor from []string
+func NewSQLSExecutorS(sqls []string) (*SQLSExecutor, error) {
+	startTime := time.Now()
 	parseErrs := make([]*ParseError, 0)
 	asts := make([]ast.StmtNode, 0)
 	for i, sql := range sqls {
@@ -156,28 +163,27 @@ func NewSQLFExecutorB(sqlBytes []byte) (*SQLFExecutor, error) {
 		}
 		asts = append(asts, stmtNode[0])
 	}
-
 	parseTime := time.Since(startTime)
 
-	return &SQLFExecutor{
+	return &SQLSExecutor{
 		ParseErrs: parseErrs,
 		ASTs: asts,
 		ParseTime: parseTime,
 	}, nil
 }
 
-func (sqlFExecutor *SQLFExecutor) Exec(conn *connector.Connector) {
+func (sqlsExecutor *SQLSExecutor) Exec(conn *connector.Connector) {
 	startTime := time.Now()
-	sqlFExecutor.PassedSQLNum = 0
-	sqlFExecutor.FailedSQLNum = 0
-	for _, AST := range sqlFExecutor.ASTs {
+	sqlsExecutor.PassedSQLNum = 0
+	sqlsExecutor.FailedSQLNum = 0
+	for _, AST := range sqlsExecutor.ASTs {
 		result := conn.ExecSQL(AST.Text())
 		if result.Err != nil {
-			sqlFExecutor.FailedSQLNum += 1
+			sqlsExecutor.FailedSQLNum += 1
 		} else {
-			sqlFExecutor.PassedSQLNum += 1
+			sqlsExecutor.PassedSQLNum += 1
 		}
-		sqlFExecutor.Results = append(sqlFExecutor.Results, result)
+		sqlsExecutor.Results = append(sqlsExecutor.Results, result)
 	}
-	sqlFExecutor.ExecuteTime = time.Since(startTime)
+	sqlsExecutor.ExecuteTime = time.Since(startTime)
 }

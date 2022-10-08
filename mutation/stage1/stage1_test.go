@@ -1,7 +1,7 @@
 package stage1
 
 import (
-	"github.com/qaqcatz/impomysql/sqlfexecutor"
+	"github.com/qaqcatz/impomysql/sqlsexecutor"
 	"github.com/qaqcatz/impomysql/testsqls"
 	"io/ioutil"
 	"strconv"
@@ -52,13 +52,13 @@ func testStage1Common2(t *testing.T, sqlFileName string) {
 	if err != nil {
 		t.Log(err.Error())
 	}
-	sqlFExecutor, err := sqlfexecutor.NewSQLFExecutorB(data)
+	sqlsExecutor, err := sqlsexecutor.NewSQLSExecutorB(data)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	sqlFExecutor.Exec(conn)
+	sqlsExecutor.Exec(conn)
 
-	err = ioutil.WriteFile("./results_"+sqlFileName+".txt", []byte(sqlFExecutor.ToString()), 0777)
+	err = ioutil.WriteFile("./results_"+sqlFileName+".txt", []byte(sqlsExecutor.ToString()), 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -67,16 +67,16 @@ func testStage1Common2(t *testing.T, sqlFileName string) {
 	failedNum := 0
 	passedStr := ""
 	failedStr := ""
-	for i, result := range sqlFExecutor.Results {
+	for i, result := range sqlsExecutor.Results {
 		if result.Err != nil {
 			continue
 		}
 
-		sqlm, err := Stage1(sqlFExecutor.ASTs[i].Text())
+		sqlm, err := Stage1(sqlsExecutor.ASTs[i].Text())
 		if err != nil {
 			failedNum += 1
 			failedStr += "========================================\n"
-			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlFExecutor.ASTs[i].Text() + "\n"
+			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
 			failedStr += "@@@@@@@@@@Stage1 failed!@@@@@@@@@@\n" + err.Error() + "\n"
 			continue
 		}
@@ -85,13 +85,13 @@ func testStage1Common2(t *testing.T, sqlFileName string) {
 		if resultm.Err != nil {
 			failedNum += 1
 			failedStr += "========================================\n"
-			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlFExecutor.ASTs[i].Text() + "\n"
+			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
 			failedStr += "[stage1] " + sqlm + "\n"
 			failedStr += resultm.ToString() + "\n"
 		} else {
 			passedNum += 1
 			passedStr += "========================================\n"
-			passedStr += "[sql " + strconv.Itoa(i) + "] " + sqlFExecutor.ASTs[i].Text() + "\n"
+			passedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
 			passedStr += "[stage1] " + sqlm + "\n"
 			passedStr += resultm.ToString() + "\n"
 		}

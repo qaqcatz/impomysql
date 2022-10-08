@@ -1,4 +1,4 @@
-package sqlfexecutor
+package sqlsexecutor
 
 import (
 	"github.com/qaqcatz/impomysql/testsqls"
@@ -43,27 +43,27 @@ func TestExtractSQL2(t *testing.T) {
 	}
 }
 
-func testNewSQLFExecutorCommon(t *testing.T, sqlFile string) {
+func testNewSQLSExecutorCommon(t *testing.T, sqlFile string) {
 	data, err, _ := testsqls.ReadSQLFile(sqlFile)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	sqlFExecutor, err := NewSQLFExecutorB(data)
+	sqlsExecutor, err := NewSQLSExecutorB(data)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	t.Log(sqlFExecutor.ToString())
+	t.Log(sqlsExecutor.ToString())
 }
 
-func TestNewSQLFExecutor(t *testing.T) {
-	testNewSQLFExecutorCommon(t, testsqls.SQLFileTest)
+func TestNewSQLSExecutor(t *testing.T) {
+	testNewSQLSExecutorCommon(t, testsqls.SQLFileTest)
 }
 
-func TestNewSQLFExecutor2(t *testing.T) {
-	testNewSQLFExecutorCommon(t, testsqls.SQLFileWindow)
+func TestNewSQLSExecutor2(t *testing.T) {
+	testNewSQLSExecutorCommon(t, testsqls.SQLFileWindow)
 }
 
-func testSQLFExecutor_ExecCommon(t *testing.T, sqlFile string) {
+func testSQLSExecutor_ExecCommon(t *testing.T, sqlFile string) {
 	err := testsqls.InitDBTEST()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -76,22 +76,22 @@ func testSQLFExecutor_ExecCommon(t *testing.T, sqlFile string) {
 	if err != nil {
 		t.Log(err.Error())
 	}
-	sqlFExecutor, err := NewSQLFExecutorB(data)
+	sqlsExecutor, err := NewSQLSExecutorB(data)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	sqlFExecutor.Exec(conn)
+	sqlsExecutor.Exec(conn)
 
-	err = ioutil.WriteFile("./results_"+sqlFile+".txt", []byte(sqlFExecutor.ToString()), 0777)
+	err = ioutil.WriteFile("./results_"+sqlFile+".txt", []byte(sqlsExecutor.ToString()), 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 }
 
-func TestSQLFExecutor_Exec(t *testing.T) {
-	testSQLFExecutor_ExecCommon(t, testsqls.SQLFileTest)
+func TestSQLSExecutor_Exec(t *testing.T) {
+	testSQLSExecutor_ExecCommon(t, testsqls.SQLFileTest)
 }
 
-func TestSQLFExecutor_Exec2(t *testing.T) {
-	testSQLFExecutor_ExecCommon(t, testsqls.SQLFileWindow)
+func TestSQLSExecutor_Exec2(t *testing.T) {
+	testSQLSExecutor_ExecCommon(t, testsqls.SQLFileWindow)
 }
