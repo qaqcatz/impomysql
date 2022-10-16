@@ -115,3 +115,14 @@ func TestStage14(t *testing.T) {
 func TestStage15(t *testing.T) {
 	testStage1Common2(t, testsqls.SQLFileWindow)
 }
+
+func TestStage16(t *testing.T) {
+	testStage1Common(t, testsqls.SQLJOIN2)
+	testStage1Common(t, testsqls.SQLJOIN3)
+	testStage1Common(t, testsqls.SQLJOIN6)
+}
+
+func TestStage17(t *testing.T) {
+	testStage1Common(t, testsqls.SQLLIMIT)
+	testStage1Common(t, testsqls.SQLLIMIT2)
+}

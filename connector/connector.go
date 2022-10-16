@@ -81,7 +81,7 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 	rows, err := conn.db.Raw(sql).Rows()
 	if err != nil {
 		return &Result{
-			Err: errors.New("Connector.ExecSQL: execute '" + sql + "' error: " + err.Error()),
+			Err: errors.New("Connector.ExecSQL: execute error: " + err.Error()),
 		}
 	}
 	defer rows.Close()
@@ -127,7 +127,8 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 			}
 		}
 
-		data := make([]string, len(columnTypes))
+		// gorm cannot convert NULL to string, we should use []byte
+		data := make([][]byte, len(columnTypes))
 		dataI := make([]interface{}, len(columnTypes))
 		for i, _ := range data {
 			dataI[i] = &data[i]
@@ -138,7 +139,16 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 				Err: errors.New("Connector.ExecSQL: scan row error: " + err.Error()),
 			}
 		}
-		result.Rows = append(result.Rows, data)
+
+		dataS := make([]string, len(columnTypes))
+		for i, _ := range data {
+			if data[i] == nil {
+				dataS[i] = "NULL"
+			} else {
+				dataS[i] = string(data[i])
+			}
+		}
+		result.Rows = append(result.Rows, dataS)
 	}
 
 	result.Time = time.Since(startTime)

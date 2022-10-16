@@ -27,6 +27,12 @@ func (v *learnASTVisitor) Enter(in ast.Node) (ast.Node, bool) {
 
 	fmt.Printf("\x1b[%dm%T\x1b[0m", 31, in)
 	switch in.(type) {
+	case *ast.SetOprSelectList:
+		v.EnterSetOprSelectList(in.(*ast.SetOprSelectList))
+	case *ast.SelectStmt:
+		v.EnterSelectStmt(in.(*ast.SelectStmt))
+	case *ast.Limit:
+		v.EnterLimit(in.(*ast.Limit))
 	case *test_driver.ValueExpr:
 		v.EnterValueExpr(in.(*test_driver.ValueExpr))
 	case *ast.BinaryOperationExpr:
@@ -35,10 +41,14 @@ func (v *learnASTVisitor) Enter(in ast.Node) (ast.Node, bool) {
 		v.EnterCompareSubqueryExpr(in.(*ast.CompareSubqueryExpr))
 	case *ast.PatternInExpr:
 		v.EnterPatternInExpr(in.(*ast.PatternInExpr))
+	case *ast.Join:
+		v.EnterJoin(in.(*ast.Join))
 	case *ast.TableSource:
 		v.EnterTableSource(in.(*ast.TableSource))
 	case *ast.TableName:
 		v.EnterTableName(in.(*ast.TableName))
+	case *ast.FieldList:
+		v.EnterFieldList(in.(*ast.FieldList))
 	case *ast.SelectField:
 		v.EnterSelectField(in.(*ast.SelectField))
 	case *ast.ColumnNameExpr:
@@ -55,6 +65,18 @@ func (v *learnASTVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	}
 	fmt.Println()
 	return in, false
+}
+
+func (v *learnASTVisitor) EnterSetOprSelectList(in *ast.SetOprSelectList) {
+	fmt.Print(" [Selects] ", len(in.Selects))
+}
+
+func (v *learnASTVisitor) EnterSelectStmt(in *ast.SelectStmt) {
+	fmt.Print(" [Distinct] ", in.Distinct)
+}
+
+func (v *learnASTVisitor) EnterLimit(in *ast.Limit) {
+	fmt.Print(" [Count type] ", reflect.TypeOf(in.Count), " [Offset type] ", reflect.TypeOf(in.Offset))
 }
 
 var valueKindMap = map[byte]string {
@@ -95,6 +117,17 @@ func (v *learnASTVisitor) EnterPatternInExpr(in *ast.PatternInExpr) {
 	fmt.Print(" [|List|] ", len(in.List), " [Not] ", in.Not, " [Sel type] ", reflect.TypeOf(in.Sel))
 }
 
+var joinTpMap = map[int]string {
+	0: "none",
+	1: "CrossJoin",
+	2: "LeftJoin",
+	3: "RightJoin",
+}
+
+func (v *learnASTVisitor) EnterJoin(in *ast.Join) {
+	fmt.Print(" [Tp] ", joinTpMap[int(in.Tp)], " [NaturalJoin] ", in.NaturalJoin, " [StraightJoin] ", in.StraightJoin, " [ExplicitParens] ", in.ExplicitParens)
+}
+
 func (v *learnASTVisitor) EnterTableSource(in *ast.TableSource) {
 	fmt.Print(" [AsName] ", in.AsName)
 }
@@ -103,6 +136,10 @@ func (v *learnASTVisitor) EnterTableName(in *ast.TableName) {
 	fmt.Print(" [Schema] ", in.Schema, " [Name] ", in.Name,
 		" [DBInfo] ", in.DBInfo, " [TableInfo] ", in.TableInfo, " [IndexHints] ", in.IndexHints,
 		" [PartitionNames] ", in.PartitionNames, " [TableSample] ", in.TableSample, " [AsOf] ", in.AsOf)
+}
+
+func (v *learnASTVisitor) EnterFieldList(in *ast.FieldList) {
+	fmt.Print(" [|Fields|] ", len(in.Fields))
 }
 
 func (v *learnASTVisitor) EnterSelectField(in *ast.SelectField) {

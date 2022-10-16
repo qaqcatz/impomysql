@@ -32,7 +32,9 @@ type SQLS struct {
 const (
 	gorandgensh = "gorandgensh"
 	magic = "!@#$%^&*()"
+	ZZTest = magic + "test.zz.lua"
 	ZZDefault = magic + "default.zz.lua"
+	YYTest = magic + "test.yy"
 	YYDefault = magic + "default.yy"
 )
 

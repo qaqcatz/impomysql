@@ -41,8 +41,10 @@
 //   1 AS avg_age,
 //   1 AS rn
 //   FROM COMPANY
-// 3. The transformed sql may fail to execute. It is recommended to execute
+// 3. {LEFT|RIGHT} [OUTER] JOIN -> JOIN
+// 4. Remove Limit
+// 5. The transformed sql may fail to execute. It is recommended to execute
 // the transformed sql to do some verification.
 //
-// 4. Only Support SELECT statement.
+// 6. Only Support SELECT statement.
 package stage1

@@ -32,9 +32,11 @@ type SQLSExecutor struct {
 	ExecuteTime time.Duration // total execute time
 	PassedSQLNum int // the number of passed sql
 	FailedSQLNum int // the number of failed sql
+	EmptyRowNumOfPRes int // the number of passed sql witch return empty result
+	SumRowNumOfPRes int // The total number of rows of passed Results
 }
 
-func (sqlsExecutor *SQLSExecutor) ToString() string {
+func (sqlsExecutor *SQLSExecutor) ToShortString() string {
 	str := ""
 	if sqlsExecutor.ParseErrs != nil && len(sqlsExecutor.ParseErrs) != 0 {
 		str += "|Parse error|: " + strconv.Itoa(len(sqlsExecutor.ParseErrs)) + "\n"
@@ -55,12 +57,40 @@ func (sqlsExecutor *SQLSExecutor) ToString() string {
 	}
 	str += "\nExec Time: " + sqlsExecutor.ExecuteTime.String() + "\n"
 	str += "Passed SQL Num: " + strconv.Itoa(sqlsExecutor.PassedSQLNum) + "\n"
-	str += "Failed SQL Num: " + strconv.Itoa(sqlsExecutor.FailedSQLNum)
+	str += "Failed SQL Num: " + strconv.Itoa(sqlsExecutor.FailedSQLNum) + "\n"
+	str += "Empty RowNum of Passed Results: " + strconv.Itoa(sqlsExecutor.EmptyRowNumOfPRes) + "\n"
+	str += "Sum RowNum of Passed Results: " + strconv.Itoa(sqlsExecutor.SumRowNumOfPRes)
+	str += "\nFailed SQLs:"
 	for i, result := range sqlsExecutor.Results {
-		str += "\n==================================================\n"
-		str += "[sql "+strconv.Itoa(i)+"]: " + sqlsExecutor.ASTs[i].Text() + "\n"
-		str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
-		str += "=================================================="
+		if result.Err != nil {
+			str += "\n==================================================\n"
+			str += "[sql "+strconv.Itoa(i)+"]: " + sqlsExecutor.ASTs[i].Text() + "\n"
+			str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
+			str += "=================================================="
+		}
+	}
+	return str
+}
+
+func (sqlsExecutor *SQLSExecutor) ToString() string {
+	str := sqlsExecutor.ToShortString()
+	str += "\nPassed SQLs(empty):"
+	for i, result := range sqlsExecutor.Results {
+		if result.Err == nil && len(result.Rows) == 0 {
+			str += "\n==================================================\n"
+			str += "[sql "+strconv.Itoa(i)+"]: " + sqlsExecutor.ASTs[i].Text() + "\n"
+			str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
+			str += "=================================================="
+		}
+	}
+	str += "\nPassed SQLs:"
+	for i, result := range sqlsExecutor.Results {
+		if result.Err == nil && len(result.Rows) != 0 {
+			str += "\n==================================================\n"
+			str += "[sql "+strconv.Itoa(i)+"]: " + sqlsExecutor.ASTs[i].Text() + "\n"
+			str += "[result "+strconv.Itoa(i)+"]: " + result.ToString() + "\n"
+			str += "=================================================="
+		}
 	}
 	return str
 }
@@ -176,12 +206,18 @@ func (sqlsExecutor *SQLSExecutor) Exec(conn *connector.Connector) {
 	startTime := time.Now()
 	sqlsExecutor.PassedSQLNum = 0
 	sqlsExecutor.FailedSQLNum = 0
+	sqlsExecutor.EmptyRowNumOfPRes = 0
+	sqlsExecutor.SumRowNumOfPRes = 0
 	for _, AST := range sqlsExecutor.ASTs {
 		result := conn.ExecSQL(AST.Text())
 		if result.Err != nil {
 			sqlsExecutor.FailedSQLNum += 1
 		} else {
 			sqlsExecutor.PassedSQLNum += 1
+			if len(result.Rows) == 0 {
+				sqlsExecutor.EmptyRowNumOfPRes += 1
+			}
+			sqlsExecutor.SumRowNumOfPRes += len(result.Rows)
 		}
 		sqlsExecutor.Results = append(sqlsExecutor.Results, result)
 	}

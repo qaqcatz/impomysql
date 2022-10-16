@@ -9,13 +9,15 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 )
 
-// InitVisitor: Remove aggregate function(and group by), window function.
+// InitVisitor: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
 type InitVisitor struct {
 }
 
 func (v *InitVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	RmAgg(in)
 	RmWindow(in)
+	RmLRJoin(in)
+	RmLimit(in)
 	return in, false
 }
 
@@ -23,7 +25,7 @@ func (v *InitVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-// Stage1: Remove aggregate function(and group by), window function.
+// Stage1: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
 //
 // The transformed sql may fail to execute. It is recommended to execute
 // the transformed sql to do some verification.
