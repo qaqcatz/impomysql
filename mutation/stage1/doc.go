@@ -1,4 +1,4 @@
-// Package stage1: Remove aggregate functions and window functions. The implication oracle cannot handle these features.
+// Package stage1: The implication oracle cannot handle these features, remove them.
 //
 // 1. Aggregate functions: For a node *ast.AggregateFuncExpr, we:
 //   - set node.F = "";

@@ -1,24 +1,33 @@
 package stage1
 
 import (
+	"errors"
 	"github.com/qaqcatz/impomysql/sqlsexecutor"
 	"github.com/qaqcatz/impomysql/testsqls"
 	"io/ioutil"
+	"path"
+	"runtime"
 	"strconv"
 	"testing"
 )
 
-// init
-func TestStage1(t *testing.T) {
+// getPackagePath: get the package actual path, then you can read files under the path.
+func getPackagePath() (string, error) {
+	if _, file, _, ok := runtime.Caller(0); !ok {
+		return "", errors.New("PackagePath: runtime.Caller(0) error ")
+	} else {
+		return path.Join(file, "../"), nil
+	}
+}
+
+func testStage1Common(t *testing.T, sql string) {
 	if err := testsqls.EnsureDBTEST(); err != nil {
 		t.Fatal(err.Error())
 	}
 	if err := testsqls.InitTableCOMPANY(); err != nil {
 		t.Fatal(err.Error())
 	}
-}
 
-func testStage1Common(t *testing.T, sql string) {
 	if err := testsqls.SQLExec(sql); err != nil {
 		t.Fatal(err.Error())
 	}
@@ -31,19 +40,31 @@ func testStage1Common(t *testing.T, sql string) {
 	}
 }
 
-func TestStage12(t *testing.T) {
+func TestStage1AGG(t *testing.T) {
 	testStage1Common(t, testsqls.SQLAGG)
 }
 
-func TestStage13(t *testing.T) {
+func TestStage1Window(t *testing.T) {
 	testStage1Common(t, testsqls.SQLWindow)
 }
 
-func testStage1Common2(t *testing.T, sqlFileName string) {
+func TestStage1JOIN(t *testing.T) {
+	testStage1Common(t, testsqls.SQLJOIN2)
+	testStage1Common(t, testsqls.SQLJOIN3)
+	testStage1Common(t, testsqls.SQLJOIN6)
+}
+
+func TestStage1LIMIT(t *testing.T) {
+	testStage1Common(t, testsqls.SQLLIMIT)
+	testStage1Common(t, testsqls.SQLLIMIT2)
+}
+
+func testStage1Common2(t *testing.T, sqlFileName string, oracle int) {
 	err := testsqls.InitDBTEST()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
 	conn, err := testsqls.GetConnector()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -58,7 +79,12 @@ func testStage1Common2(t *testing.T, sqlFileName string) {
 	}
 	sqlsExecutor.Exec(conn)
 
-	err = ioutil.WriteFile("./results_"+sqlFileName+".txt", []byte(sqlsExecutor.ToString()), 0777)
+	packagePath, err := getPackagePath()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+".txt"), []byte(sqlsExecutor.ToString()), 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -98,31 +124,24 @@ func testStage1Common2(t *testing.T, sqlFileName string) {
 	}
 	passedStr = strconv.Itoa(passedNum) + "\n" + passedStr
 	failedStr = strconv.Itoa(failedNum) + "\n" + failedStr
-	err = ioutil.WriteFile("./results_"+sqlFileName+"_pass.txt", []byte(passedStr), 0777)
+	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+"_pass.txt"), []byte(passedStr), 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	err = ioutil.WriteFile("./results_"+sqlFileName+"_fail.txt", []byte(failedStr), 0777)
+	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+"_fail.txt"), []byte(failedStr), 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
+	if passedNum != oracle {
+		t.Fatal("passedNum != oracle: [passedNum]", passedNum, "[oracle]", oracle)
+	}
 }
 
-func TestStage14(t *testing.T) {
-	testStage1Common2(t, testsqls.SQLFileAgg)
+func TestStage1FileAgg(t *testing.T) {
+	testStage1Common2(t, testsqls.SQLFileAgg, 100)
 }
 
-func TestStage15(t *testing.T) {
-	testStage1Common2(t, testsqls.SQLFileWindow)
-}
-
-func TestStage16(t *testing.T) {
-	testStage1Common(t, testsqls.SQLJOIN2)
-	testStage1Common(t, testsqls.SQLJOIN3)
-	testStage1Common(t, testsqls.SQLJOIN6)
-}
-
-func TestStage17(t *testing.T) {
-	testStage1Common(t, testsqls.SQLLIMIT)
-	testStage1Common(t, testsqls.SQLLIMIT2)
+func TestStage1FileWindow(t *testing.T) {
+	testStage1Common2(t, testsqls.SQLFileWindow, 10)
 }

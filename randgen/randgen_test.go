@@ -5,11 +5,12 @@ import (
 	"github.com/qaqcatz/impomysql/sqlsexecutor"
 	"github.com/qaqcatz/impomysql/testsqls"
 	"io/ioutil"
+	"path"
 	"testing"
 	"time"
 )
 
-func TestRandGen(t *testing.T) {
+func TestRandGenJson(t *testing.T) {
 	//sqls, err := RandGen(ZZTest, YYTest, 100, 123456)
 	sqls, err := RandGen(ZZTest, YYTest, 100, time.Now().UnixNano())
 	if err != nil {
@@ -19,13 +20,17 @@ func TestRandGen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	err = ioutil.WriteFile("./test.json", data, 0777)
+	packagePath, err := getPackagePath()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = ioutil.WriteFile(path.Join(packagePath, "test.json"), data, 0777)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 }
 
-func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queriesNum int, seed int64, log bool) {
+func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queriesNum int, seed int64, name string, log bool) {
 	//sqls, err := RandGen(ZZTest, YYTest, 100, 123456)
 	sqls, err := RandGen(zzFilePath, yyFilePath, queriesNum, seed)
 	if err != nil {
@@ -47,8 +52,13 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 	}
 	sqlsExecutor1.Exec(conn)
 
+	packagePath, err := getPackagePath()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
 	if log {
-		err = ioutil.WriteFile("./results_"+ZZDefault+".txt", []byte(sqlsExecutor1.ToString()), 0777)
+		err = ioutil.WriteFile(path.Join(packagePath, name+"_zz.txt"), []byte(sqlsExecutor1.ToString()), 0777)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -63,7 +73,7 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 	sqlsExecutor2.Exec(conn)
 
 	if log {
-		err = ioutil.WriteFile("./results_"+YYDefault+".txt", []byte(sqlsExecutor2.ToString()), 0777)
+		err = ioutil.WriteFile(path.Join(packagePath, name+"_yy.txt"), []byte(sqlsExecutor2.ToString()), 0777)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -72,15 +82,15 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 	}
 }
 
-func TestRandGen2(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), true)
+func TestRandGenRd100Log(t *testing.T) {
+	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), "fix100", true)
 }
 
-func TestRandGen3(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), false)
+func TestRandGenRd100(t *testing.T) {
+	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), "", false)
 }
 
 // 3MB Memory
-func TestRandGen4(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYTest, 10000, time.Now().UnixNano(), false)
-}
+//func TestRandGenRd10000(t *testing.T) {
+//	testRandGenCommon(t, ZZTest, YYTest, 10000, time.Now().UnixNano(), "",false)
+//}

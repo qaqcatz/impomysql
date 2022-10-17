@@ -25,14 +25,12 @@ func TestConnector_ExecSQL(t *testing.T) {
 	} else {
 		t.Log(result.ToString())
 	}
-}
 
-func TestConnector_ExecSQL2(t *testing.T) {
-	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, testDBname)
+	conn, err = NewConnector(testHost, testPort, testUsername, testPassword, testDBname)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	result := conn.ExecSQL("DROP TABLE IF EXISTS T")
+	result = conn.ExecSQL("DROP TABLE IF EXISTS T")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())
 	} else {
@@ -44,13 +42,7 @@ func TestConnector_ExecSQL2(t *testing.T) {
 	} else {
 		t.Log(result.ToString())
 	}
-}
 
-func TestConnector_ExecSQL3(t *testing.T) {
-	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, testDBname)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
 	for i := 0; i < 3; i++ {
 		result := conn.ExecSQL("INSERT INTO T VALUES ("+strconv.Itoa(i)+", '"+string(rune(i+'A'))+"')")
 		if result.Err != nil {
@@ -60,14 +52,7 @@ func TestConnector_ExecSQL3(t *testing.T) {
 		}
 	}
 
-}
-
-func TestConnector_ExecSQL4(t *testing.T) {
-	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, testDBname)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	result := conn.ExecSQL("SELECT 1+2, ID, NAME FROM T;")
+	result = conn.ExecSQL("SELECT 1+2, ID, NAME FROM T;")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())
 	} else {

@@ -26,56 +26,103 @@ func (v *learnASTVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	v.depth += 1
 
 	fmt.Printf("\x1b[%dm%T\x1b[0m", 31, in)
-	switch in.(type) {
-	case *ast.SetOprSelectList:
-		v.EnterSetOprSelectList(in.(*ast.SetOprSelectList))
-	case *ast.SelectStmt:
-		v.EnterSelectStmt(in.(*ast.SelectStmt))
-	case *ast.Limit:
-		v.EnterLimit(in.(*ast.Limit))
-	case *test_driver.ValueExpr:
-		v.EnterValueExpr(in.(*test_driver.ValueExpr))
-	case *ast.BinaryOperationExpr:
-		v.EnterBinaryOperationExpr(in.(*ast.BinaryOperationExpr))
-	case *ast.CompareSubqueryExpr:
-		v.EnterCompareSubqueryExpr(in.(*ast.CompareSubqueryExpr))
-	case *ast.PatternInExpr:
-		v.EnterPatternInExpr(in.(*ast.PatternInExpr))
-	case *ast.Join:
-		v.EnterJoin(in.(*ast.Join))
-	case *ast.TableSource:
-		v.EnterTableSource(in.(*ast.TableSource))
-	case *ast.TableName:
-		v.EnterTableName(in.(*ast.TableName))
-	case *ast.FieldList:
-		v.EnterFieldList(in.(*ast.FieldList))
-	case *ast.SelectField:
-		v.EnterSelectField(in.(*ast.SelectField))
-	case *ast.ColumnNameExpr:
-		v.EnterColumnNameExpr(in.(*ast.ColumnNameExpr))
-	case *ast.ColumnName:
-		v.EnterColumnName(in.(*ast.ColumnName))
-	case *ast.AggregateFuncExpr:
-		v.EnterAggregateFuncExpr(in.(*ast.AggregateFuncExpr))
-	case *ast.WindowFuncExpr:
-		v.EnterWindowFuncExpr(in.(*ast.WindowFuncExpr))
-	case *ast.WindowSpec:
-		v.EnterWindowSpec(in.(*ast.WindowSpec))
-	default:
-	}
+
+	PrintNode(in)
+
 	fmt.Println()
 	return in, false
 }
 
-func (v *learnASTVisitor) EnterSetOprSelectList(in *ast.SetOprSelectList) {
+func (v *learnASTVisitor) Leave(in ast.Node) (ast.Node, bool) {
+	v.depth -= 1
+	return in, true
+}
+
+func PrintNode(in ast.Node) {
+	switch in.(type) {
+	case *ast.WithClause:
+		printWithClause(in.(*ast.WithClause))
+	case *ast.SetOprStmt:
+		printSetOprStmt(in.(*ast.SetOprStmt))
+	case *ast.SetOprSelectList:
+		printSetOprSelectList(in.(*ast.SetOprSelectList))
+	case *ast.SubqueryExpr:
+		printSubqueryExpr(in.(*ast.SubqueryExpr))
+	case *ast.SelectStmt:
+		printSelectStmt(in.(*ast.SelectStmt))
+	case *ast.Limit:
+		printLimit(in.(*ast.Limit))
+	case *test_driver.ValueExpr:
+		printValueExpr(in.(*test_driver.ValueExpr))
+	case *ast.BinaryOperationExpr:
+		printBinaryOperationExpr(in.(*ast.BinaryOperationExpr))
+	case *ast.CompareSubqueryExpr:
+		printCompareSubqueryExpr(in.(*ast.CompareSubqueryExpr))
+	case *ast.ExistsSubqueryExpr:
+		printExistsSubqueryExpr(in.(*ast.ExistsSubqueryExpr))
+	case *ast.PatternInExpr:
+		printPatternInExpr(in.(*ast.PatternInExpr))
+	case *ast.TableRefsClause:
+		printTableRefsClause(in.(*ast.TableRefsClause))
+	case *ast.Join:
+		printJoin(in.(*ast.Join))
+	case *ast.TableSource:
+		printTableSource(in.(*ast.TableSource))
+	case *ast.TableName:
+		printTableName(in.(*ast.TableName))
+	case *ast.FieldList:
+		printFieldList(in.(*ast.FieldList))
+	case *ast.SelectField:
+		printSelectField(in.(*ast.SelectField))
+	case *ast.ColumnNameExpr:
+		printColumnNameExpr(in.(*ast.ColumnNameExpr))
+	case *ast.ColumnName:
+		printColumnName(in.(*ast.ColumnName))
+	case *ast.AggregateFuncExpr:
+		printAggregateFuncExpr(in.(*ast.AggregateFuncExpr))
+	case *ast.WindowFuncExpr:
+		printWindowFuncExpr(in.(*ast.WindowFuncExpr))
+	case *ast.WindowSpec:
+		printWindowSpec(in.(*ast.WindowSpec))
+	default:
+	}
+}
+
+func printWithClause(in *ast.WithClause) {
+	fmt.Print(" [|CTEs|] ", len(in.CTEs), " [IsRecursive] ", in.IsRecursive)
+}
+
+func printSetOprStmt(in *ast.SetOprStmt) {
+	fmt.Print(" [OrderBy?] ", in.OrderBy != nil)
+	fmt.Print(" [Limit?] ", in.Limit != nil)
+	fmt.Print(" [With?] ", in.With != nil)
+}
+
+func printSetOprSelectList(in *ast.SetOprSelectList) {
+	fmt.Print(" [AfterSetOperator] ")
+	if in.AfterSetOperator != nil {
+		fmt.Print(in.AfterSetOperator.String())
+	}
+	fmt.Print(" [With?] ", in.With != nil)
 	fmt.Print(" [Selects] ", len(in.Selects))
+	for i, sel := range in.Selects {
+		fmt.Print(" [", i, "] ", reflect.TypeOf(sel))
+	}
 }
 
-func (v *learnASTVisitor) EnterSelectStmt(in *ast.SelectStmt) {
-	fmt.Print(" [Distinct] ", in.Distinct)
+func printSelectStmt(in *ast.SelectStmt) {
+	fmt.Print(" [Distinct] ", in.Distinct, " [AfterSetOperator] ", in.AfterSetOperator)
 }
 
-func (v *learnASTVisitor) EnterLimit(in *ast.Limit) {
+func printSubqueryExpr(in *ast.SubqueryExpr) {
+	fmt.Print(" [Query type] ", reflect.TypeOf(in.Query))
+	fmt.Print(" [Evaluated] ", in.Evaluated)
+	fmt.Print(" [Correlated] ", in.Correlated)
+	fmt.Print(" [MultiRows] ", in.MultiRows)
+	fmt.Print(" [Exists] ", in.Exists)
+}
+
+func printLimit(in *ast.Limit) {
 	fmt.Print(" [Count type] ", reflect.TypeOf(in.Count), " [Offset type] ", reflect.TypeOf(in.Offset))
 }
 
@@ -101,20 +148,28 @@ var valueKindMap = map[byte]string {
 	18: "KindMysqlJSON",
 }
 
-func (v *learnASTVisitor) EnterValueExpr(in *test_driver.ValueExpr) {
+func printValueExpr(in *test_driver.ValueExpr) {
 	fmt.Print("[Kind] ", valueKindMap[in.Kind()], " [Value] ", in.GetValue())
 }
 
-func (v *learnASTVisitor) EnterBinaryOperationExpr(in *ast.BinaryOperationExpr) {
+func printBinaryOperationExpr(in *ast.BinaryOperationExpr) {
 	fmt.Print(" [Op] ", in.Op)
 }
 
-func (v *learnASTVisitor) EnterCompareSubqueryExpr(in *ast.CompareSubqueryExpr) {
+func printCompareSubqueryExpr(in *ast.CompareSubqueryExpr) {
 	fmt.Print(" [Op] ", in.Op, " [All] ", in.All)
 }
 
-func (v *learnASTVisitor) EnterPatternInExpr(in *ast.PatternInExpr) {
+func printExistsSubqueryExpr(in *ast.ExistsSubqueryExpr) {
+	fmt.Print(" [Not] ", in.Not)
+}
+
+func printPatternInExpr(in *ast.PatternInExpr) {
 	fmt.Print(" [|List|] ", len(in.List), " [Not] ", in.Not, " [Sel type] ", reflect.TypeOf(in.Sel))
+}
+
+func printTableRefsClause(in *ast.TableRefsClause) {
+	fmt.Print(" [TableRefs?] ", in.TableRefs != nil)
 }
 
 var joinTpMap = map[int]string {
@@ -124,53 +179,48 @@ var joinTpMap = map[int]string {
 	3: "RightJoin",
 }
 
-func (v *learnASTVisitor) EnterJoin(in *ast.Join) {
+func printJoin(in *ast.Join) {
 	fmt.Print(" [Tp] ", joinTpMap[int(in.Tp)], " [NaturalJoin] ", in.NaturalJoin, " [StraightJoin] ", in.StraightJoin, " [ExplicitParens] ", in.ExplicitParens)
 }
 
-func (v *learnASTVisitor) EnterTableSource(in *ast.TableSource) {
+func printTableSource(in *ast.TableSource) {
 	fmt.Print(" [AsName] ", in.AsName)
 }
 
-func (v *learnASTVisitor) EnterTableName(in *ast.TableName) {
+func printTableName(in *ast.TableName) {
 	fmt.Print(" [Schema] ", in.Schema, " [Name] ", in.Name,
 		" [DBInfo] ", in.DBInfo, " [TableInfo] ", in.TableInfo, " [IndexHints] ", in.IndexHints,
 		" [PartitionNames] ", in.PartitionNames, " [TableSample] ", in.TableSample, " [AsOf] ", in.AsOf)
 }
 
-func (v *learnASTVisitor) EnterFieldList(in *ast.FieldList) {
+func printFieldList(in *ast.FieldList) {
 	fmt.Print(" [|Fields|] ", len(in.Fields))
 }
 
-func (v *learnASTVisitor) EnterSelectField(in *ast.SelectField) {
+func printSelectField(in *ast.SelectField) {
 	fmt.Print(" [AsName] ", in.AsName, " [WildCard] ", in.WildCard)
 }
 
-func (v *learnASTVisitor) EnterColumnNameExpr(in *ast.ColumnNameExpr) {
+func printColumnNameExpr(in *ast.ColumnNameExpr) {
 	fmt.Print(" [Refer] ", in.Refer)
 }
 
-func (v *learnASTVisitor) EnterColumnName(in *ast.ColumnName) {
+func printColumnName(in *ast.ColumnName) {
 	fmt.Print(" [Schema] ", in.Schema, " [Table] ", in.Table, " [Name] ", in.Name)
 }
 
-func (v *learnASTVisitor) EnterAggregateFuncExpr(in *ast.AggregateFuncExpr) {
+func printAggregateFuncExpr(in *ast.AggregateFuncExpr) {
 	fmt.Print(" [F] ", in.F, " [|Args|] ", len(in.Args), " [Distinct] ", in.Distinct, " [Order?] ", in.Order != nil)
 }
 
-func (v *learnASTVisitor) EnterWindowFuncExpr(in *ast.WindowFuncExpr) {
+func printWindowFuncExpr(in *ast.WindowFuncExpr) {
 	fmt.Print(" [F] ", in.F, " [|Args|] ", len(in.Args), " [Distinct] ", in.Distinct,
 		" [IgnoreNull] ", in.IgnoreNull, " [FromLast] ", in.FromLast)
 }
 
-func (v *learnASTVisitor) EnterWindowSpec(in *ast.WindowSpec) {
+func printWindowSpec(in *ast.WindowSpec) {
 	fmt.Print(" [Name] ", in.Name, " [Ref] ", in.Ref, " [PartitionBy?] ", in.PartitionBy != nil,
 		" [OrderBy?] ", in.OrderBy != nil, " [Frame?] ", in.Frame != nil, " [OnlyAlias] ", in.OnlyAlias)
-}
-
-func (v *learnASTVisitor) Leave(in ast.Node) (ast.Node, bool) {
-	v.depth -= 1
-	return in, true
 }
 
 func learnAST(sql string) (string, error) {

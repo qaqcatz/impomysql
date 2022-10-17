@@ -8,7 +8,7 @@
     --     * analyze all 175 ast.Node of tidb parser(https://github.com/pingcap/tidb/tree/v5.4.2/parser),
     --       of which 57 nodes are related to query, including 31 operators and 317 functions.
     --     Nevertheless, we may still be ill-considered. Please contact us via github issue to help us improve impo.
-    -- impo works on SELECT statement.
+    -- impo works on SELECT statement, focus on WHERE and HAVING(ON).
     -- The unsupported/supported features are as follows: (we will use operations to summarize operators / functions / statements / clauses uniformly)
     -- (1) impo cannot support these features:
     --     * Numerical operations and their descendants, including |, &, ~, <<, >>, +, -, *, /(DIV), %(MOD), ^.

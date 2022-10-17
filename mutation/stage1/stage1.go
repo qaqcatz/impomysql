@@ -41,18 +41,22 @@ func Stage1(sql string) (string, error) {
 		return "", errors.New("Stage1: stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
-	if selectStmt, ok := (*rootNode).(*ast.SelectStmt); ok {
-		v := &InitVisitor{}
-		selectStmt.Accept(v)
 
-		buf := new(bytes.Buffer)
-		ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
-		err := selectStmt.Restore(ctx)
-		if err != nil {
-			return "", errors.New("Stage1: selectStmt.Restore() error: " + err.Error())
-		}
-		return buf.String(), nil
-	} else {
-		return "", errors.New("Stage1: *rootNode is not *ast.SelectStmt ")
+	switch (*rootNode).(type) {
+	case *ast.SelectStmt:
+	case *ast.SetOprStmt:
+	default:
+		return "", errors.New("Stage1: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
 	}
+
+	v := &InitVisitor{}
+	(*rootNode).Accept(v)
+
+	buf := new(bytes.Buffer)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
+	err = (*rootNode).Restore(ctx)
+	if err != nil {
+		return "", errors.New("Stage1: (*rootNode).Restore() error: " + err.Error())
+	}
+	return buf.String(), nil
 }
