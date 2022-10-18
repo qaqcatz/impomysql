@@ -341,7 +341,8 @@ havingclause:
     | HAVING { setStackTop( colNamesStack, stackTop(curAStack) ) } explicitp { setStackTop( colNamesStack, stackTop(childAStack) ) }
 
 explicitp:
-    (expr) IS TRUE
+    expr
+    | (expr) IS TRUE
     | (expr) IS FALSE
 
 orderbyclause:

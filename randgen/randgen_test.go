@@ -11,8 +11,8 @@ import (
 )
 
 func TestRandGenJson(t *testing.T) {
-	//sqls, err := RandGen(ZZTest, YYTest, 100, 123456)
-	sqls, err := RandGen(ZZTest, YYTest, 100, time.Now().UnixNano())
+	//sqls, err := RandGen(ZZTest, YYImpo, 100, 123456)
+	sqls, err := RandGen(ZZTest, YYImpo, 100, time.Now().UnixNano())
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -63,7 +63,7 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 			t.Fatal(err.Error())
 		}
 	} else {
-		t.Log(ZZDefault, ":\n", sqlsExecutor1.ToShortString())
+		t.Log(zzFilePath, ":\n", sqlsExecutor1.ToShortString())
 	}
 
 	sqlsExecutor2, err := sqlsexecutor.NewSQLSExecutorS(sqls.RandSQLs)
@@ -78,19 +78,19 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 			t.Fatal(err.Error())
 		}
 	} else {
-		t.Log(YYDefault, ":\n", sqlsExecutor2.ToShortString())
+		t.Log(yyFilePath, ":\n", sqlsExecutor2.ToShortString())
 	}
 }
 
 func TestRandGenRd100Log(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), "fix100", true)
+	testRandGenCommon(t, ZZTest, YYImpo, 100, time.Now().UnixNano(), "fix100", true)
 }
 
 func TestRandGenRd100(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYTest, 100, time.Now().UnixNano(), "", false)
+	testRandGenCommon(t, ZZTest, YYImpo, 100, time.Now().UnixNano(), "", false)
 }
 
 // 3MB Memory
 //func TestRandGenRd10000(t *testing.T) {
-//	testRandGenCommon(t, ZZTest, YYTest, 10000, time.Now().UnixNano(), "",false)
+//	testRandGenCommon(t, ZZTest, YYImpo, 10000, time.Now().UnixNano(), "",false)
 //}

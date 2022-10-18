@@ -3,21 +3,179 @@ package stage2
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
 	_ "github.com/pingcap/tidb/parser/test_driver"
+	"math/rand"
 )
 
-// MutateVisitor: visit the sub-AST according to randgen.YYDefault and obtain candidate mutation points.
+// all mutations
+const (
+	// *ast.SelectStmt: Distinct true -> false
+	FixMDistinctU = "FixMDistinctU"
+	// *ast.SelectStmt: Distinct false -> true
+	FixMDistinctL = "FixMDistinctL"
+	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr: a {>|<|=} b -> a {>=|<=|>=} b
+	FixMCmpOpU = "FixMCmpOpU"
+	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr: a {>=|<=} b -> a {>|<} b
+	FixMCmpOpL = "FixMCmpOpL"
+	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+	//
+	// a {>|>=} b -> (a) + 1 {>|>=} (b) + 0
+	//
+	// a {<|<=} b -> (a) + 0 {<|<=} (b) + 1
+	//
+	// may false positive
+	FixMCmpU = "FixMCmpU"
+	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+	//
+	// a {>|>=} b -> (a) + 0 {>|>=} (b) + 1
+	//
+	// a {<|<=} b -> (a) + 1 {<|<=} (b) + 0
+	//
+	// may false positive
+	FixMCmpL = "FixMCmpL"
+	// *ast.CompareSubqueryExpr: ALL true -> false
+	FixMCmpSubU = "FixMCmpSubU"
+	// *ast.CompareSubqueryExpr: ALL false -> true
+	FixMCmpSubL = "FixMCmpSubL"
+	// *ast.Join: NaturalJoin true -> false
+	FixMNaturalJoinU = "FixMNaturalJoinU"
+	// *ast.Join: NaturalJoin false -> true
+	FixMNaturalJoinL = "FixMNaturalJoinL"
+	// *ast.SelectStmt: AfterSetOperator UNION -> UNION ALL
+	FixMUnionAllU    = "FixMUnionAllU"
+	// *ast.SelectStmt: AfterSetOperator UNION ALL -> UNION
+	FixMUnionAllL    = "FixMUnionAllL"
+	// *ast.BetweenExpr:
+	//   expr between l and r
+	//   ->
+	//   (expr) >= l and (expr) <= r
+	//   -> FixMCmpOpU / FixMCmpU )
+	RdMBetweenU = "RdMBetweenU"
+	// *ast.BetweenExpr:
+	//   expr between l and r
+	//   ->
+	//   (expr) >= l and (expr) <= r
+	//   -> FixMCmpOpL / FixMCmpL )
+	RdMBetweenL = "RdMBetweenL"
+	// *ast.PatternInExpr: in(x,x,x) -> in(x,x,x,...)
+	RdMInU = "RdMInU"
+	// *ast.PatternInExpr: in(x,x,x,...) -> in(x,x,x)
+	RdMInL = "RdMInL"
+	// *ast.PatternLikeExpr: normal char -> '_'|'%',  '_' -> '%'
+	RdMLikeU = "RdMLikeU"
+	// *ast.PatternLikeExpr: '%' -> '_'
+	RdMLikeL = "RdMLikeL"
+	// *ast.PatternRegexpExpr: '^'|'$' -> '', normal char -> '.', '+'|'?' -> '*'
+	RdMRegExpU = "RdMRegExpU"
+	// *ast.PatternRegexpExpr: '*' -> '+'|'?'
+	RdMRegExpL = "RdMRegExpL"
+	// *ast.SelectStmt: WHERE xxx -> WHERE TRUE | WHERE (xxx) OR 1
+	RdMWhereU = "RdMWhereU"
+	// *ast.SelectStmt: WHERE xxx -> WHERE FALSE | WHERE (xxx) AND 0
+	RdMWhereL = "RdMWhereL"
+	// *ast.HavingClause: HAVING xxx -> HAVING TRUE | HAVING (xxx) OR 1
+	RdMHavingU = "RdMHavingU"
+	// *ast.HavingClause: HAVING xxx -> HAVING FALSE | HAVING (xxx) AND 0
+	RdMHavingL = "RdMHavingL"
+	// *ast.Join: join value select, same columnNum for NATURAL JOIN
+	RdJoinU = "RdJoinU"
+	// *ast.Join: remove Right, Tp = 0
+	FixJoinL = "RdJoinL"
+	// *ast.SetOprStmt: union value select, same columnNum
+	RdUnionU = "RdUnionU"
+	// *ast.SetOprStmt: remove SelectList.Selects[1:]
+	FixUnionL = "RdUnionL"
+)
+
+// Candidate: (mutation name, U, candidate node, Flag).
+//
+// Flag: 1: positive, 0: negative.
+//
+// U: when positive, 1: upper mutation, 0: lower mutation.
+//
+// example:
+//   [positive]
+//     SELECT * FROM T WHERE X > 0;
+//     [ upper mutation ] X > 0 -> X >= 0
+//     The result set will expand
+//   [negative]
+//     SELECT * FROM T WHERE (X > 0) IS FALSE;
+//     [upper mutation ] x > 0 -> X >= 0
+//     The result set will shrink
+//   [negative]
+//     SELECT * FROM T WHERE (X > 0) IS FALSE;
+//     [lower mutation ] x > 0 -> X > 1
+//     The result set will expand
+// Obviously you should use !(U ^ Flag) to calculate the effect of mutation
+type Candidate struct {
+	MutationName string // mutation name
+	// 1: upper mutation, strings.HasSuffix(MutationName, "U"): true;
+	// 0: lower mutation, strings.HasSuffix(MutationName, "L"): true
+	U int
+	Node ast.Node // candidate node
+	Flag int // 1: positive, 0: negative
+}
+
+// MutateVisitor: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
+//
+// Each mutation has its own name.
+//
+// about the prefix {FixM|RdM}(currently not working):
+//
+// - FixM means fixed mutation;
+//
+// - RdM means random mutation;
+//
+// about the suffix {U|L}:
+//
+// - U means upper mutation,
+//
+// - L means lower mutation.
+//
+// see:
+//   FixMDistinctU
+//	 FixMDistinctL
+//	 FixMCmpOpU
+//	 FixMCmpOpL
+//	 FixMCmpU
+//	 FixMCmpL
+//	 FixMCmpSubU
+//	 FixMCmpSubL
+//	 FixMNaturalJoinU
+//	 FixMNaturalJoinL
+//	 FixMUnionAllU
+//	 FixMUnionAllL
+//	 RdMBetweenU
+//	 RdMBetweenL
+//	 RdMInU
+//	 RdMInL
+//	 RdMLikeU
+//	 RdMLikeL
+//	 RdMRegExpU
+//	 RdMRegExpL
+//	 RdMWhereU
+//	 RdMWhereL
+//	 RdMHavingU
+//	 RdMHavingL
+//	 RdJoinU
+// 	 FixJoinL
+// 	 RdUnionU
+//	 FixUnionL
+// To obtain the final oracle, you should combine  Candidate.Flag
 type MutateVisitor struct {
-	// ast node : positive or negative. You don not need to deal with keywords(e.g. NOT, ALL) by yourself.
-	Candidates map[ast.Node]int
+	CandidatesT map[string][]*Candidate // mutation name : slice of *Candidate
+	Candidates   map[ast.Node]int        // mutation name : slice of *Candidate
 }
 
 func CalCandidates(rootNode ast.Node) *MutateVisitor {
-	v := &MutateVisitor{Candidates: make(map[ast.Node]int)}
+	v := &MutateVisitor{
+		CandidatesT: make(map[string][]*Candidate),
+		Candidates:   make(map[ast.Node]int)}
 	v.visit(rootNode, 1)
 	return v
 }
@@ -107,7 +265,7 @@ func (v *MutateVisitor) visitSelect(in *ast.SelectStmt, flag int) {
 	if in == nil {
 		return
 	}
-	// Distinct mutation
+	// distinct mutation
 	v.Candidates[in] = flag
 	// from
 	v.visitTableRefClause(in.From, flag)
@@ -295,13 +453,13 @@ func (v *MutateVisitor) visitBinaryOperationExpr(in *ast.BinaryOperationExpr, fl
 		// skim
 	case opcode.NullEQ:
 		// skim
-	//case opcode.In:
-	//case opcode.Like:
-	//case opcode.Case:
-	//case opcode.Regexp:
-	//case opcode.IsNull:
-	//case opcode.IsTruth:
-	//case opcode.IsFalsity:
+		//case opcode.In:
+		//case opcode.Like:
+		//case opcode.Case:
+		//case opcode.Regexp:
+		//case opcode.IsNull:
+		//case opcode.IsTruth:
+		//case opcode.IsFalsity:
 	}
 }
 
@@ -450,17 +608,48 @@ func (v *MutateVisitor) visitTrimDirectionExpr(in *ast.TrimDirectionExpr, flag i
 	}
 }
 
-// impoMutate: randomly select a mutation point according to the random seed to mutate.
-// We will change the ast directly.
-func impoMutate(rootNode ast.Node, v *MutateVisitor, seed int64) {
+func (v *MutateVisitor) miningSelectStmt(in *ast.SelectStmt, flag int) {
 
+
+}
+
+func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
+	var ls []*Candidate = nil
+	ok := false
+	if ls, ok = v.CandidatesT[mutationName]; !ok {
+		ls = make([]*Candidate, 0)
+		v.CandidatesT[mutationName] = ls
+	}
+	ls = append(ls, &Candidate{
+		MutationName: mutationName,
+		U: u,
+		Node: in,
+		Flag: flag,
+	})
+}
+
+// ImpoMutate: you can choose any mutation point to mutate, each mutation has no side effects.
+func ImpoMutate(rootNode ast.Node, v *MutateVisitor, seed int64) {
+	candidates := v.Candidates
+	rand.Seed(seed)
+	idx := rand.Intn(len(candidates))
+	var candidate ast.Node = nil
+	var flag int = 0
+	i := 0
+	for candidate, flag = range candidates {
+		if i == idx {
+			break
+		}
+		i++
+	}
+	fmt.Println(candidate, flag)
 }
 
 // Stage2:
 //
-// 1. visit the sub-AST according to randgen.YYDefault and obtain candidate mutation points.
+// 1. visit the sub-AST according to randgen.YYImpo and obtain the candidate set of  mutation points.
 //
-// 2. randomly select a mutation point according to the random seed to mutate.
+// 2. you can choose any mutation point to mutate, each mutation has no side effects.
 func Stage2(sql string, seed int64) (string, error) {
 	// 1
 	p := parser.New()
@@ -476,7 +665,7 @@ func Stage2(sql string, seed int64) (string, error) {
 	v := CalCandidates(*rootNode)
 
 	// 2
-	impoMutate(*rootNode, v, seed)
+	ImpoMutate(*rootNode, v, seed)
 	buf := new(bytes.Buffer)
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err = (*rootNode).Restore(ctx)

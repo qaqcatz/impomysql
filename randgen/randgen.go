@@ -34,8 +34,7 @@ const (
 	magic = "!@#$%^&*()"
 	ZZTest = magic + "test.zz.lua"
 	ZZDefault = magic + "default.zz.lua"
-	YYTest = magic + "test.yy"
-	YYDefault = magic + "default.yy"
+	YYImpo = magic + "impo.yy"
 )
 
 // RandGen: see https://github.com/qaqcatz/gorandgensh
