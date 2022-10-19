@@ -3,13 +3,11 @@ package stage2
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
 	_ "github.com/pingcap/tidb/parser/test_driver"
-	"math/rand"
 )
 
 // all mutations
@@ -47,9 +45,9 @@ const (
 	// *ast.Join: NaturalJoin false -> true
 	FixMNaturalJoinL = "FixMNaturalJoinL"
 	// *ast.SelectStmt: AfterSetOperator UNION -> UNION ALL
-	FixMUnionAllU    = "FixMUnionAllU"
+	FixMUnionAllU = "FixMUnionAllU"
 	// *ast.SelectStmt: AfterSetOperator UNION ALL -> UNION
-	FixMUnionAllL    = "FixMUnionAllL"
+	FixMUnionAllL = "FixMUnionAllL"
 	// *ast.BetweenExpr:
 	//   expr between l and r
 	//   ->
@@ -116,9 +114,9 @@ type Candidate struct {
 	MutationName string // mutation name
 	// 1: upper mutation, strings.HasSuffix(MutationName, "U"): true;
 	// 0: lower mutation, strings.HasSuffix(MutationName, "L"): true
-	U int
+	U    int
 	Node ast.Node // candidate node
-	Flag int // 1: positive, 0: negative
+	Flag int      // 1: positive, 0: negative
 }
 
 // MutateVisitor: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
@@ -166,16 +164,20 @@ type Candidate struct {
 // 	 FixJoinL
 // 	 RdUnionU
 //	 FixUnionL
-// To obtain the final oracle, you should combine  Candidate.Flag
+// function:
+//   visitxxx: calculate flag, call miningxxx
+//   miningxxx: call addxxx
+//   addxxx: calculate mutation u/l
 type MutateVisitor struct {
 	CandidatesT map[string][]*Candidate // mutation name : slice of *Candidate
-	Candidates   map[ast.Node]int        // mutation name : slice of *Candidate
+	Candidates  map[ast.Node]int        // mutation name : slice of *Candidate
 }
 
+// CalCandidates: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
 func CalCandidates(rootNode ast.Node) *MutateVisitor {
 	v := &MutateVisitor{
 		CandidatesT: make(map[string][]*Candidate),
-		Candidates:   make(map[ast.Node]int)}
+		Candidates:  make(map[ast.Node]int)}
 	v.visit(rootNode, 1)
 	return v
 }
@@ -609,8 +611,18 @@ func (v *MutateVisitor) visitTrimDirectionExpr(in *ast.TrimDirectionExpr, flag i
 }
 
 func (v *MutateVisitor) miningSelectStmt(in *ast.SelectStmt, flag int) {
-
-
+	// FixMDistinctU
+	v.addFixMDistinctU(in, flag)
+	// FixMDistinctL
+	v.addFixMDistinctL(in, flag)
+	// FixMUnionAllU
+	v.addFixMUnionAllU(in, flag)
+	// FixMUnionAllL
+	v.addFixMUnionAllL(in, flag)
+	// RdMWhereU
+	v.addRdMWhereU(in, flag)
+	// RdMWhereL
+	v.addRdMWhereL(in, flag)
 }
 
 func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
@@ -622,27 +634,66 @@ func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, fl
 	}
 	ls = append(ls, &Candidate{
 		MutationName: mutationName,
-		U: u,
-		Node: in,
-		Flag: flag,
+		U:            u,
+		Node:         in,
+		Flag:         flag,
 	})
 }
 
-// ImpoMutate: you can choose any mutation point to mutate, each mutation has no side effects.
-func ImpoMutate(rootNode ast.Node, v *MutateVisitor, seed int64) {
-	candidates := v.Candidates
-	rand.Seed(seed)
-	idx := rand.Intn(len(candidates))
-	var candidate ast.Node = nil
-	var flag int = 0
-	i := 0
-	for candidate, flag = range candidates {
-		if i == idx {
-			break
-		}
-		i++
+// ImpoMutate: you can choose any candidate to mutate, each mutation has no side effects.
+func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, error) {
+	var sql []byte = nil
+	var err error = nil
+	switch candidate.MutationName {
+	case FixMDistinctU:
+		sql, err = doFixMDistinctU(rootNode, candidate.Node)
+	case FixMDistinctL:
+		sql, err = doFixMDistinctL(rootNode, candidate.Node)
+	case FixMCmpOpU:
+	case FixMCmpOpL:
+	case FixMCmpU:
+	case FixMCmpL:
+	case FixMCmpSubU:
+	case FixMCmpSubL:
+	case FixMNaturalJoinU:
+	case FixMNaturalJoinL:
+	case FixMUnionAllU:
+		sql, err = doFixMUnionAllU(rootNode, candidate.Node)
+	case FixMUnionAllL:
+		sql, err = doFixMUnionAllL(rootNode, candidate.Node)
+	case RdMBetweenU:
+	case RdMBetweenL:
+	case RdMInU:
+	case RdMInL:
+	case RdMLikeU:
+	case RdMLikeL:
+	case RdMRegExpU:
+	case RdMRegExpL:
+	case RdMWhereU:
+		sql, err = doRdMWhereU(rootNode, candidate.Node, seed)
+	case RdMWhereL:
+		sql, err = doRdMWhereL(rootNode, candidate.Node, seed)
+	case RdMHavingU:
+	case RdMHavingL:
+	case RdJoinU:
+	case FixJoinL:
+	case RdUnionU:
+	case FixUnionL:
 	}
-	fmt.Println(candidate, flag)
+	if err != nil {
+		return nil, errors.New("ImpoMutate: " +  err.Error())
+	}
+	return sql, nil
+}
+
+func restore(rootNode ast.Node) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
+	err := rootNode.Restore(ctx)
+	if err != nil {
+		return nil, errors.New("restore error: " + err.Error())
+	}
+	return buf.Bytes(), nil
 }
 
 // Stage2:
@@ -662,15 +713,9 @@ func Stage2(sql string, seed int64) (string, error) {
 	}
 	rootNode := &stmtNodes[0]
 
-	v := CalCandidates(*rootNode)
+	_ = CalCandidates(*rootNode)
 
 	// 2
-	ImpoMutate(*rootNode, v, seed)
-	buf := new(bytes.Buffer)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
-	err = (*rootNode).Restore(ctx)
-	if err != nil {
-		return "", errors.New("Stage2: (*rootNode).Restore() error: " + err.Error())
-	}
-	return buf.String(), nil
+
+	return "", nil
 }

@@ -113,3 +113,7 @@ func TestLearnASTWITH2(t *testing.T) {
 func TestLearnASTIN(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLIN);
 }
+
+func TestLearnASTWHERE(t *testing.T) {
+	testLearnASTCommon(t, testsqls.SQLWHERE);
+}
