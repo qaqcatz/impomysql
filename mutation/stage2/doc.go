@@ -13,8 +13,6 @@
 //	 FixMCmpL
 //	 FixMCmpSubU
 //	 FixMCmpSubL
-//	 FixMNaturalJoinU
-//	 FixMNaturalJoinL
 //	 FixMUnionAllU
 //	 FixMUnionAllL
 //	 RdMBetweenU
@@ -29,8 +27,5 @@
 //	 RdMWhereL
 //	 RdMHavingU
 //	 RdMHavingL
-//	 RdJoinU
-// 	 FixJoinL
-// 	 RdUnionU
-//	 FixUnionL
+//	 FixMUnionL
 package stage2

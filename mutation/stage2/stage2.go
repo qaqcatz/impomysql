@@ -40,10 +40,6 @@ const (
 	FixMCmpSubU = "FixMCmpSubU"
 	// *ast.CompareSubqueryExpr: ALL false -> true
 	FixMCmpSubL = "FixMCmpSubL"
-	// *ast.Join: NaturalJoin true -> false
-	FixMNaturalJoinU = "FixMNaturalJoinU"
-	// *ast.Join: NaturalJoin false -> true
-	FixMNaturalJoinL = "FixMNaturalJoinL"
 	// *ast.SelectStmt: AfterSetOperator UNION -> UNION ALL
 	FixMUnionAllU = "FixMUnionAllU"
 	// *ast.SelectStmt: AfterSetOperator UNION ALL -> UNION
@@ -76,18 +72,12 @@ const (
 	RdMWhereU = "RdMWhereU"
 	// *ast.SelectStmt: WHERE xxx -> WHERE FALSE | WHERE (xxx) AND 0
 	RdMWhereL = "RdMWhereL"
-	// *ast.HavingClause: HAVING xxx -> HAVING TRUE | HAVING (xxx) OR 1
+	// *ast.SelectStmt: HAVING xxx -> HAVING TRUE | HAVING (xxx) OR 1
 	RdMHavingU = "RdMHavingU"
-	// *ast.HavingClause: HAVING xxx -> HAVING FALSE | HAVING (xxx) AND 0
+	// *ast.SelectStmt: HAVING xxx -> HAVING FALSE | HAVING (xxx) AND 0
 	RdMHavingL = "RdMHavingL"
-	// *ast.Join: join value select, same columnNum for NATURAL JOIN
-	RdJoinU = "RdJoinU"
-	// *ast.Join: remove Right, Tp = 0
-	FixJoinL = "RdJoinL"
-	// *ast.SetOprStmt: union value select, same columnNum
-	RdUnionU = "RdUnionU"
-	// *ast.SetOprStmt: remove SelectList.Selects[1:]
-	FixUnionL = "RdUnionL"
+	// *ast.SetOprSelectList: remove Selects[1:]
+	FixMUnionL = "RdUnionL"
 )
 
 // Candidate: (mutation name, U, candidate node, Flag).
@@ -144,8 +134,6 @@ type Candidate struct {
 //	 FixMCmpL
 //	 FixMCmpSubU
 //	 FixMCmpSubL
-//	 FixMNaturalJoinU
-//	 FixMNaturalJoinL
 //	 FixMUnionAllU
 //	 FixMUnionAllL
 //	 RdMBetweenU
@@ -160,10 +148,7 @@ type Candidate struct {
 //	 RdMWhereL
 //	 RdMHavingU
 //	 RdMHavingL
-//	 RdJoinU
-// 	 FixJoinL
-// 	 RdUnionU
-//	 FixUnionL
+//	 FixMUnionL
 // function:
 //   visitxxx: calculate flag, call miningxxx
 //   miningxxx: call addxxx
@@ -215,6 +200,8 @@ func (v *MutateVisitor) visitSetOprSelectList(in *ast.SetOprSelectList, flag int
 			v.visitSelect(sel.(*ast.SelectStmt), flag)
 		}
 	}
+
+	v.miningSetOprSelectList(in, flag)
 }
 
 func (v *MutateVisitor) visitWithClause(in *ast.WithClause, flag int) {
@@ -267,8 +254,7 @@ func (v *MutateVisitor) visitSelect(in *ast.SelectStmt, flag int) {
 	if in == nil {
 		return
 	}
-	// distinct mutation
-	v.Candidates[in] = flag
+
 	// from
 	v.visitTableRefClause(in.From, flag)
 	// where
@@ -277,6 +263,8 @@ func (v *MutateVisitor) visitSelect(in *ast.SelectStmt, flag int) {
 	v.visitHavingClause(in.Having, flag)
 	// with
 	v.visitWithClause(in.With, flag)
+
+	v.miningSelectStmt(in, flag)
 }
 
 func (v *MutateVisitor) visitTableRefClause(in *ast.TableRefsClause, flag int) {
@@ -413,23 +401,17 @@ func (v *MutateVisitor) visitBinaryOperationExpr(in *ast.BinaryOperationExpr, fl
 		v.visitExprNode(in.L, flag)
 		v.visitExprNode(in.R, flag)
 	case opcode.GE:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.LE:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.EQ:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.NE:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.LT:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.GT:
-		// cmp mutation
-		v.Candidates[in] = flag
+		// cmp mutation, see miningBinaryOperationExpr
 	case opcode.Plus:
 		// numeric skim
 	case opcode.Minus:
@@ -463,6 +445,8 @@ func (v *MutateVisitor) visitBinaryOperationExpr(in *ast.BinaryOperationExpr, fl
 		//case opcode.IsTruth:
 		//case opcode.IsFalsity:
 	}
+
+	v.miningBinaryOperationExpr(in, flag)
 }
 
 // visitCompareSubqueryExpr: cmp mutation
@@ -470,8 +454,8 @@ func (v *MutateVisitor) visitCompareSubqueryExpr(in *ast.CompareSubqueryExpr, fl
 	if in == nil {
 		return
 	}
-	// cmp mutation
-	v.Candidates[in] = flag
+	// before All
+	v.miningCompareSubqueryExpr(in, flag)
 	// in.all false: ANY, in.all true: ALL
 	if in.All {
 		flag = flag ^ 1
@@ -610,6 +594,11 @@ func (v *MutateVisitor) visitTrimDirectionExpr(in *ast.TrimDirectionExpr, flag i
 	}
 }
 
+func (v *MutateVisitor) miningSetOprSelectList(in *ast.SetOprSelectList, flag int) {
+	// FixMUnionL
+	v.addFixMUnionL(in, flag)
+}
+
 func (v *MutateVisitor) miningSelectStmt(in *ast.SelectStmt, flag int) {
 	// FixMDistinctU
 	v.addFixMDistinctU(in, flag)
@@ -623,6 +612,36 @@ func (v *MutateVisitor) miningSelectStmt(in *ast.SelectStmt, flag int) {
 	v.addRdMWhereU(in, flag)
 	// RdMWhereL
 	v.addRdMWhereL(in, flag)
+    // RdMHavingU
+	v.addRdMHavingU(in, flag)
+	// RdMHavingL
+	v.addRdMHavingL(in, flag)
+}
+
+func (v *MutateVisitor) miningBinaryOperationExpr(in *ast.BinaryOperationExpr, flag int) {
+	// FixMCmpOpU
+	v.addFixMCmpOpU(in, flag)
+	// FixMCmpOpL
+	v.addFixMCmpOpL(in, flag)
+	// FixMCmpU
+	v.addFixMCmpU(in, flag)
+	// FixMCmpL
+	v.addFixMCmpL(in, flag)
+}
+
+func (v *MutateVisitor) miningCompareSubqueryExpr(in *ast.CompareSubqueryExpr, flag int) {
+	// FixMCmpOpU
+	v.addFixMCmpOpU(in, flag)
+	// FixMCmpOpL
+	v.addFixMCmpOpL(in, flag)
+	// FixMCmpU
+	v.addFixMCmpU(in, flag)
+	// FixMCmpL
+	v.addFixMCmpL(in, flag)
+	// FixMCmpSubU
+	v.addFixMCmpSubU(in, flag)
+	// FixMCmpSubL
+	v.addFixMCmpSubL(in, flag)
 }
 
 func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
@@ -650,19 +669,25 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 	case FixMDistinctL:
 		sql, err = doFixMDistinctL(rootNode, candidate.Node)
 	case FixMCmpOpU:
+		sql, err = doFixMCmpOpU(rootNode, candidate.Node)
 	case FixMCmpOpL:
+		sql, err = doFixMCmpOpL(rootNode, candidate.Node)
 	case FixMCmpU:
+		sql, err = doFixMCmpU(rootNode, candidate.Node)
 	case FixMCmpL:
+		sql, err = doFixMCmpL(rootNode, candidate.Node)
 	case FixMCmpSubU:
+		sql, err = doFixMCmpSubU(rootNode, candidate.Node)
 	case FixMCmpSubL:
-	case FixMNaturalJoinU:
-	case FixMNaturalJoinL:
+		sql, err = doFixMCmpSubL(rootNode, candidate.Node)
 	case FixMUnionAllU:
 		sql, err = doFixMUnionAllU(rootNode, candidate.Node)
 	case FixMUnionAllL:
 		sql, err = doFixMUnionAllL(rootNode, candidate.Node)
 	case RdMBetweenU:
+
 	case RdMBetweenL:
+
 	case RdMInU:
 	case RdMInL:
 	case RdMLikeU:
@@ -674,11 +699,11 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 	case RdMWhereL:
 		sql, err = doRdMWhereL(rootNode, candidate.Node, seed)
 	case RdMHavingU:
+		sql, err = doRdMHavingU(rootNode, candidate.Node, seed)
 	case RdMHavingL:
-	case RdJoinU:
-	case FixJoinL:
-	case RdUnionU:
-	case FixUnionL:
+		sql, err = doRdMHavingL(rootNode, candidate.Node, seed)
+	case FixMUnionL:
+		sql, err = doFixMUnionL(rootNode, candidate.Node)
 	}
 	if err != nil {
 		return nil, errors.New("ImpoMutate: " +  err.Error())

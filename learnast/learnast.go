@@ -112,6 +112,7 @@ func printSetOprSelectList(in *ast.SetOprSelectList) {
 
 func printSelectStmt(in *ast.SelectStmt) {
 	fmt.Print(" [Distinct] ", in.Distinct, " [AfterSetOperator] ", in.AfterSetOperator)
+	fmt.Print(" [IsInBraces] ", in.IsInBraces)
 }
 
 func printSubqueryExpr(in *ast.SubqueryExpr) {
