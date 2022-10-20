@@ -25,20 +25,20 @@ func (v *InitVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-// Stage1: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
+// Init: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
 //
 // The transformed sql may fail to execute. It is recommended to execute
 // the transformed sql to do some verification.
 //
 // Only Support SELECT statement.
-func Stage1(sql string) (string, error) {
+func Init(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.New("Stage1: p.Parse() error: " + err.Error())
+		return "", errors.New("Init: p.Parse() error: " + err.Error())
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("Stage1: stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("Init: stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
@@ -46,7 +46,7 @@ func Stage1(sql string) (string, error) {
 	case *ast.SelectStmt:
 	case *ast.SetOprStmt:
 	default:
-		return "", errors.New("Stage1: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
+		return "", errors.New("Init: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
 	}
 
 	v := &InitVisitor{}
@@ -56,7 +56,7 @@ func Stage1(sql string) (string, error) {
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err = (*rootNode).Restore(ctx)
 	if err != nil {
-		return "", errors.New("Stage1: (*rootNode).Restore() error: " + err.Error())
+		return "", errors.New("Init: (*rootNode).Restore() error: " + err.Error())
 	}
 	return buf.String(), nil
 }

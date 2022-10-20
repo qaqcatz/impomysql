@@ -3,7 +3,6 @@ package stage2
 import (
 	"bytes"
 	"errors"
-	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
@@ -48,7 +47,7 @@ const (
 	//   expr between l and r
 	//   ->
 	//   (expr) >= l and (expr) <= r
-	//   -> FixMCmpOpU / FixMCmpU )
+	//   -> FixMCmpU )
 	RdMBetweenU = "RdMBetweenU"
 	// *ast.BetweenExpr:
 	//   expr between l and r
@@ -186,6 +185,7 @@ func (v *MutateVisitor) visitSetOprStmt(in *ast.SetOprStmt, flag int) {
 	v.visitSetOprSelectList(in.SelectList, flag)
 }
 
+// visitSetOprSelectList: miningSetOprSelectList
 func (v *MutateVisitor) visitSetOprSelectList(in *ast.SetOprSelectList, flag int) {
 	// MySQL only has UNION [ALL]
 	if in == nil {
@@ -249,7 +249,7 @@ func (v *MutateVisitor) visitTableSource(in *ast.TableSource, flag int) {
 	v.visitResultSetNode(in.Source, flag)
 }
 
-// visitSelect: top1
+// visitSelect: top1, miningSelectStmt
 func (v *MutateVisitor) visitSelect(in *ast.SelectStmt, flag int) {
 	if in == nil {
 		return
@@ -375,16 +375,19 @@ func (v *MutateVisitor) visitExprNode(in ast.ExprNode, flag int) {
 	}
 }
 
-// visitBetweenExpr: between mutation
+// visitBetweenExpr: miningBetweenExpr
 func (v *MutateVisitor) visitBetweenExpr(in *ast.BetweenExpr, flag int) {
+	if in == nil {
+		return
+	}
 	if in.Not {
 		flag = flag ^ 1
 	}
-	// between mutation
-	v.Candidates[in] = flag
+	// after if in.Not
+	v.miningBetweenExpr(in, flag)
 }
 
-// visitBinaryOperationExpr: important bridge, cmp mutation
+// visitBinaryOperationExpr: important bridge, miningBinaryOperationExpr
 func (v *MutateVisitor) visitBinaryOperationExpr(in *ast.BinaryOperationExpr, flag int) {
 	if in == nil {
 		return
@@ -449,7 +452,7 @@ func (v *MutateVisitor) visitBinaryOperationExpr(in *ast.BinaryOperationExpr, fl
 	v.miningBinaryOperationExpr(in, flag)
 }
 
-// visitCompareSubqueryExpr: cmp mutation
+// visitCompareSubqueryExpr: miningCompareSubqueryExpr
 func (v *MutateVisitor) visitCompareSubqueryExpr(in *ast.CompareSubqueryExpr, flag int) {
 	if in == nil {
 		return
@@ -644,6 +647,13 @@ func (v *MutateVisitor) miningCompareSubqueryExpr(in *ast.CompareSubqueryExpr, f
 	v.addFixMCmpSubL(in, flag)
 }
 
+func (v *MutateVisitor) miningBetweenExpr(in *ast.BetweenExpr, flag int) {
+	// RdMBetweenU
+	v.addRdMBetweenU(in, flag)
+	// RdMBetweenL
+	v.addRdMBetweenL(in, flag)
+}
+
 func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
 	var ls []*Candidate = nil
 	ok := false
@@ -685,9 +695,9 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 	case FixMUnionAllL:
 		sql, err = doFixMUnionAllL(rootNode, candidate.Node)
 	case RdMBetweenU:
-
+		sql, err = doRdMBetweenU(rootNode, candidate.Node, seed)
 	case RdMBetweenL:
-
+		sql, err = doRdMBetweenL(rootNode, candidate.Node, seed)
 	case RdMInU:
 	case RdMInL:
 	case RdMLikeU:
@@ -719,28 +729,4 @@ func restore(rootNode ast.Node) ([]byte, error) {
 		return nil, errors.New("restore error: " + err.Error())
 	}
 	return buf.Bytes(), nil
-}
-
-// Stage2:
-//
-// 1. visit the sub-AST according to randgen.YYImpo and obtain the candidate set of  mutation points.
-//
-// 2. you can choose any mutation point to mutate, each mutation has no side effects.
-func Stage2(sql string, seed int64) (string, error) {
-	// 1
-	p := parser.New()
-	stmtNodes, _, err := p.Parse(sql, "", "")
-	if err != nil {
-		return "", errors.New("Stage2: p.Parse() error: " + err.Error())
-	}
-	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("Stage1: stmtNodes == nil || len(stmtNodes) == 0 ")
-	}
-	rootNode := &stmtNodes[0]
-
-	_ = CalCandidates(*rootNode)
-
-	// 2
-
-	return "", nil
 }

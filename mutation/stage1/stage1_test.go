@@ -20,7 +20,7 @@ func getPackagePath() (string, error) {
 	}
 }
 
-func testStage1Common(t *testing.T, sql string) {
+func testInitCommon(t *testing.T, sql string) {
 	if err := testsqls.EnsureDBTEST(); err != nil {
 		t.Fatal(err.Error())
 	}
@@ -31,7 +31,7 @@ func testStage1Common(t *testing.T, sql string) {
 	if err := testsqls.SQLExec(sql); err != nil {
 		t.Fatal(err.Error())
 	}
-	if sqlm, err := Stage1(sql); err != nil {
+	if sqlm, err := Init(sql); err != nil {
 		t.Fatal(err.Error())
 	} else {
 		if err := testsqls.SQLExec(sqlm); err != nil {
@@ -40,26 +40,26 @@ func testStage1Common(t *testing.T, sql string) {
 	}
 }
 
-func TestStage1AGG(t *testing.T) {
-	testStage1Common(t, testsqls.SQLAGG)
+func TestInitAGG(t *testing.T) {
+	testInitCommon(t, testsqls.SQLAGG)
 }
 
-func TestStage1Window(t *testing.T) {
-	testStage1Common(t, testsqls.SQLWindow)
+func TestInitWindow(t *testing.T) {
+	testInitCommon(t, testsqls.SQLWindow)
 }
 
-func TestStage1JOIN(t *testing.T) {
-	testStage1Common(t, testsqls.SQLJOIN2)
-	testStage1Common(t, testsqls.SQLJOIN3)
-	testStage1Common(t, testsqls.SQLJOIN6)
+func TestInitJOIN(t *testing.T) {
+	testInitCommon(t, testsqls.SQLJOIN2)
+	testInitCommon(t, testsqls.SQLJOIN3)
+	testInitCommon(t, testsqls.SQLJOIN6)
 }
 
-func TestStage1LIMIT(t *testing.T) {
-	testStage1Common(t, testsqls.SQLLIMIT)
-	testStage1Common(t, testsqls.SQLLIMIT2)
+func TestInitLIMIT(t *testing.T) {
+	testInitCommon(t, testsqls.SQLLIMIT)
+	testInitCommon(t, testsqls.SQLLIMIT2)
 }
 
-func testStage1Common2(t *testing.T, sqlFileName string, oracle int) {
+func testInitCommon2(t *testing.T, sqlFileName string, oracle int) {
 	err := testsqls.InitDBTEST()
 	if err != nil {
 		t.Fatal(err.Error())
@@ -98,12 +98,12 @@ func testStage1Common2(t *testing.T, sqlFileName string, oracle int) {
 			continue
 		}
 
-		sqlm, err := Stage1(sqlsExecutor.ASTs[i].Text())
+		sqlm, err := Init(sqlsExecutor.ASTs[i].Text())
 		if err != nil {
 			failedNum += 1
 			failedStr += "========================================\n"
 			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			failedStr += "@@@@@@@@@@Stage1 failed!@@@@@@@@@@\n" + err.Error() + "\n"
+			failedStr += "@@@@@@@@@@Init failed!@@@@@@@@@@\n" + err.Error() + "\n"
 			continue
 		}
 
@@ -112,13 +112,13 @@ func testStage1Common2(t *testing.T, sqlFileName string, oracle int) {
 			failedNum += 1
 			failedStr += "========================================\n"
 			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			failedStr += "[stage1] " + sqlm + "\n"
+			failedStr += "[Init] " + sqlm + "\n"
 			failedStr += resultm.ToString() + "\n"
 		} else {
 			passedNum += 1
 			passedStr += "========================================\n"
 			passedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			passedStr += "[stage1] " + sqlm + "\n"
+			passedStr += "[Init] " + sqlm + "\n"
 			passedStr += resultm.ToString() + "\n"
 		}
 	}
@@ -138,10 +138,10 @@ func testStage1Common2(t *testing.T, sqlFileName string, oracle int) {
 	}
 }
 
-func TestStage1FileAgg(t *testing.T) {
-	testStage1Common2(t, testsqls.SQLFileAgg, 100)
+func TestInitFileAgg(t *testing.T) {
+	testInitCommon2(t, testsqls.SQLFileAgg, 100)
 }
 
-func TestStage1FileWindow(t *testing.T) {
-	testStage1Common2(t, testsqls.SQLFileWindow, 10)
+func TestInitFileWindow(t *testing.T) {
+	testInitCommon2(t, testsqls.SQLFileWindow, 10)
 }
