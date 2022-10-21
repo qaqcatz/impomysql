@@ -490,6 +490,8 @@ func (v *MutateVisitor) visitPatternInExpr(in *ast.PatternInExpr, flag int) {
 	if in.Not {
 		flag = flag ^ 1
 	}
+	// after in.Not
+	v.miningPatternInExpr(in, flag)
 	// IN (XXX,XXX,XXX) OR IN (SUBQUERY)?
 	switch (in.Sel).(type) {
 	case *ast.SubqueryExpr:
@@ -654,6 +656,13 @@ func (v *MutateVisitor) miningBetweenExpr(in *ast.BetweenExpr, flag int) {
 	v.addRdMBetweenL(in, flag)
 }
 
+func (v *MutateVisitor) miningPatternInExpr(in *ast.PatternInExpr, flag int) {
+	// RdMInU
+	v.addRdMInU(in, flag)
+	// RdMInL
+	v.addRdMInL(in, flag)
+}
+
 func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
 	var ls []*Candidate = nil
 	ok := false
@@ -699,7 +708,9 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 	case RdMBetweenL:
 		sql, err = doRdMBetweenL(rootNode, candidate.Node, seed)
 	case RdMInU:
+		sql, err = doRdMInU(rootNode, candidate.Node, seed)
 	case RdMInL:
+		sql, err = doRdMInL(rootNode, candidate.Node, seed)
 	case RdMLikeU:
 	case RdMLikeL:
 	case RdMRegExpU:
