@@ -18,9 +18,11 @@
     --       Cannot support XOR, IS NULL, <=> and their descendants.
     --       Cannot support SOUNDEX(), SOUNDS LIKE, see https://dev.mysql.com/doc/refman/8.0/en/string-functions.html#function_soundex
     --     * aggregate functions, window functions, GROUP BY
-    --     * logical operations IN the fields of SELECT.
+    --     * logical operations in the fields of SELECT.
+    --     * WITH RECURSIVE
     --     * LEFT|RIGHT JOIN
     --     * LIMIT
+    --     * LIKE ESCAPE '_' | '%'
     --     * flow control operations, see https://dev.mysql.com/doc/refman/8.0/en/flow-control-statements.html
     --       CASE statement, CASE operator;
     --       IF statement, IF(), IFNULL(), NULLIF() functions, see https://dev.mysql.com/doc/refman/8.0/en/flow-control-functions.html
@@ -35,7 +37,7 @@
     --     * EXPLAIN
     --     * Optimizer Hints
     -- (2) impo supports these features:
-    --     * WITH [RECURSIVE]
+    --     * WITH(non-RECURSIVE)
     --     * UNION
     --     * part of JOIN: JOIN(CROSS JOIN, INNER JOIN), STRAIGHT_JOIN, NATURAL JOIN
     --     * WHERE, HAVING, ORDER BY

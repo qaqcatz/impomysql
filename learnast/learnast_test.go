@@ -117,3 +117,11 @@ func TestLearnASTIN(t *testing.T) {
 func TestLearnASTWHERE(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLWHERE);
 }
+
+func TestLearnASTLIKE(t *testing.T) {
+	testLearnASTCommon(t, testsqls.SQLLIKE);
+}
+
+func TestLearnASTRegExp(t *testing.T) {
+	testLearnASTCommon(t, testsqls.SQLRegExp);
+}

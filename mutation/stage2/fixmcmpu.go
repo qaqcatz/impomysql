@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-// addFixMCmpU: FixMCmpU, *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+// addFixMCmpU: FixMCmpU, *ast.BinaryOperationExpr:
 //
 // a {>|>=} b -> (a) + 1 {>|>=} (b) + 0
 //
@@ -22,9 +22,6 @@ func (v *MutateVisitor) addFixMCmpU(in ast.Node, flag int) {
 	case *ast.BinaryOperationExpr:
 		bin := in.(*ast.BinaryOperationExpr)
 		myOp = &bin.Op
-	case *ast.CompareSubqueryExpr:
-		cmp := in.(*ast.CompareSubqueryExpr)
-		myOp = &cmp.Op
 	default:
 		return
 	}
@@ -39,7 +36,7 @@ func (v *MutateVisitor) addFixMCmpU(in ast.Node, flag int) {
 	v.addCandidate(FixMCmpU, 1, in, flag)
 }
 
-// doFixMCmpU: FixMCmpU, *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+// doFixMCmpU: FixMCmpU, *ast.BinaryOperationExpr:
 //
 // a {>|>=} b -> (a) + 1 {>|>=} (b) + 0
 //
@@ -57,11 +54,6 @@ func doFixMCmpU(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		myOp = &bin.Op
 		myL = &bin.L
 		myR = &bin.R
-	case *ast.CompareSubqueryExpr:
-		cmp := in.(*ast.CompareSubqueryExpr)
-		myOp = &cmp.Op
-		myL = &cmp.L
-		myR = &cmp.R
 	case nil:
 		return nil, errors.New("doFixMCmpU: type error: nil")
 	default:
@@ -89,7 +81,7 @@ func doFixMCmpU(rootNode ast.Node, in ast.Node) ([]byte, error) {
 				Datum: test_driver.NewDatum(1),
 			},
 		}
-	case opcode.GT | opcode.GE:
+	case opcode.GT, opcode.GE:
 		// a {>|>=} b -> (a) + 1 {>|>=} (b) + 0
 		newL = &ast.BinaryOperationExpr {
 			Op: opcode.Plus,

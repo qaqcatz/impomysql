@@ -84,6 +84,10 @@ func PrintNode(in ast.Node) {
 		printWindowFuncExpr(in.(*ast.WindowFuncExpr))
 	case *ast.WindowSpec:
 		printWindowSpec(in.(*ast.WindowSpec))
+	case *ast.PatternLikeExpr:
+		printPatternLikeExpr(in.(*ast.PatternLikeExpr))
+	case *ast.PatternRegexpExpr:
+		printPatternRegexpExpr(in.(*ast.PatternRegexpExpr))
 	default:
 	}
 }
@@ -222,6 +226,30 @@ func printWindowFuncExpr(in *ast.WindowFuncExpr) {
 func printWindowSpec(in *ast.WindowSpec) {
 	fmt.Print(" [Name] ", in.Name, " [Ref] ", in.Ref, " [PartitionBy?] ", in.PartitionBy != nil,
 		" [OrderBy?] ", in.OrderBy != nil, " [Frame?] ", in.Frame != nil, " [OnlyAlias] ", in.OnlyAlias)
+}
+
+func printPatternLikeExpr(in *ast.PatternLikeExpr) {
+	if t, ok := (in.Expr).(*test_driver.ValueExpr); ok {
+		fmt.Print(" [Expr] ")
+		printValueExpr(t)
+	}
+	if t, ok := (in.Pattern).(*test_driver.ValueExpr); ok {
+		fmt.Print(" [Pattern] ")
+		printValueExpr(t)
+	}
+	fmt.Print(" [Not] ", in.Not, " [Escape] ", string(in.Escape))
+}
+
+func printPatternRegexpExpr(in *ast.PatternRegexpExpr) {
+	if t, ok := (in.Expr).(*test_driver.ValueExpr); ok {
+		fmt.Print(" [Expr] ")
+		printValueExpr(t)
+	}
+	if t, ok := (in.Pattern).(*test_driver.ValueExpr); ok {
+		fmt.Print(" [Pattern] ")
+		printValueExpr(t)
+	}
+	fmt.Print(" [Not] ", in.Not, " [Re] ", in.Re, " [Sexpr] ", in.Sexpr)
 }
 
 func learnAST(sql string) (string, error) {

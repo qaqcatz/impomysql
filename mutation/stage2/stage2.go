@@ -7,6 +7,8 @@ import (
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
 	_ "github.com/pingcap/tidb/parser/test_driver"
+	"log"
+	"strings"
 )
 
 // all mutations
@@ -19,7 +21,7 @@ const (
 	FixMCmpOpU = "FixMCmpOpU"
 	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr: a {>=|<=} b -> a {>|<} b
 	FixMCmpOpL = "FixMCmpOpL"
-	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+	// *ast.BinaryOperationExpr:
 	//
 	// a {>|>=} b -> (a) + 1 {>|>=} (b) + 0
 	//
@@ -27,7 +29,7 @@ const (
 	//
 	// may false positive
 	FixMCmpU = "FixMCmpU"
-	// *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr:
+	// *ast.BinaryOperationExpr:
 	//
 	// a {>|>=} b -> (a) + 0 {>|>=} (b) + 1
 	//
@@ -75,6 +77,10 @@ const (
 	RdMHavingU = "RdMHavingU"
 	// *ast.SelectStmt: HAVING xxx -> HAVING FALSE | HAVING (xxx) AND 0
 	RdMHavingL = "RdMHavingL"
+	// *ast.Join: ON xxx -> ON TRUE | ON (xxx) OR 1
+	RdMOnU = "RdMOnU"
+	// *ast.Join: ON xxx -> ON FALSE | ON (xxx) AND 0
+	RdMOnL = "RdMOnL"
 	// *ast.SetOprSelectList: remove Selects[1:]
 	FixMUnionL = "RdUnionL"
 )
@@ -147,21 +153,21 @@ type Candidate struct {
 //	 RdMWhereL
 //	 RdMHavingU
 //	 RdMHavingL
+//	 RdMOnU
+//	 RdMOnL
 //	 FixMUnionL
 // function:
 //   visitxxx: calculate flag, call miningxxx
 //   miningxxx: call addxxx
 //   addxxx: calculate mutation u/l
 type MutateVisitor struct {
-	CandidatesT map[string][]*Candidate // mutation name : slice of *Candidate
-	Candidates  map[ast.Node]int        // mutation name : slice of *Candidate
+	Candidates map[string][]*Candidate // mutation name : slice of *Candidate
 }
 
 // CalCandidates: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
 func CalCandidates(rootNode ast.Node) *MutateVisitor {
 	v := &MutateVisitor{
-		CandidatesT: make(map[string][]*Candidate),
-		Candidates:  make(map[ast.Node]int)}
+		Candidates: make(map[string][]*Candidate)}
 	v.visit(rootNode, 1)
 	return v
 }
@@ -206,6 +212,10 @@ func (v *MutateVisitor) visitSetOprSelectList(in *ast.SetOprSelectList, flag int
 
 func (v *MutateVisitor) visitWithClause(in *ast.WithClause, flag int) {
 	if in == nil {
+		return
+	}
+	// cannot support recursive WITH
+	if in.IsRecursive {
 		return
 	}
 	for _, cte := range in.CTEs {
@@ -286,6 +296,8 @@ func (v *MutateVisitor) visitJoin(in *ast.Join, flag int) {
 	v.visitResultSetNode(in.Right, flag)
 	// on
 	v.visitOnCondition(in.On, flag)
+
+	v.miningJoin(in, flag)
 }
 
 func (v *MutateVisitor) visitOnCondition(in *ast.OnCondition, flag int) {
@@ -482,7 +494,7 @@ func (v *MutateVisitor) visitExistsSubqueryExpr(in *ast.ExistsSubqueryExpr, flag
 	}
 }
 
-// visitPatternInExpr: in mutation
+// visitPatternInExpr: miningPatternInExpr
 func (v *MutateVisitor) visitPatternInExpr(in *ast.PatternInExpr, flag int) {
 	if in == nil {
 		return
@@ -490,24 +502,21 @@ func (v *MutateVisitor) visitPatternInExpr(in *ast.PatternInExpr, flag int) {
 	if in.Not {
 		flag = flag ^ 1
 	}
-	// after in.Not
-	v.miningPatternInExpr(in, flag)
 	// IN (XXX,XXX,XXX) OR IN (SUBQUERY)?
 	switch (in.Sel).(type) {
 	case *ast.SubqueryExpr:
 		v.visitSubqueryExpr((in.Sel).(*ast.SubqueryExpr), flag)
 	default:
-		// nil
-		// in mutation
-		v.Candidates[in] = flag
+		// after in.Not
+		v.miningPatternInExpr(in, flag)
 	}
 }
 
-// visitIsNullExpr: skim
 func (v *MutateVisitor) visitIsNullExpr(in *ast.IsNullExpr, flag int) {
 	if in == nil {
 		return
 	}
+	// skim
 }
 
 func (v *MutateVisitor) visitIsTruthExpr(in *ast.IsTruthExpr, flag int) {
@@ -525,7 +534,7 @@ func (v *MutateVisitor) visitIsTruthExpr(in *ast.IsTruthExpr, flag int) {
 	v.visitExprNode(in.Expr, flag)
 }
 
-// visitPatternLikeExpr: like mutation
+// visitPatternLikeExpr: miningPatternLikeExpr
 func (v *MutateVisitor) visitPatternLikeExpr(in *ast.PatternLikeExpr, flag int) {
 	if in == nil {
 		return
@@ -533,8 +542,8 @@ func (v *MutateVisitor) visitPatternLikeExpr(in *ast.PatternLikeExpr, flag int) 
 	if in.Not {
 		flag = flag ^ 1
 	}
-	// like mutation
-	v.Candidates[in] = flag
+	// after in.Not
+	v.miningPatternLikeExpr(in, flag)
 }
 
 // visitParenthesesExpr: ()
@@ -545,7 +554,7 @@ func (v *MutateVisitor) visitParenthesesExpr(in *ast.ParenthesesExpr, flag int) 
 	v.visitExprNode(in.Expr, flag)
 }
 
-// visitPatternRegexpExpr: regexp mutation
+// visitPatternRegexpExpr: miningPatternRegexpExpr
 func (v *MutateVisitor) visitPatternRegexpExpr(in *ast.PatternRegexpExpr, flag int) {
 	if in == nil {
 		return
@@ -553,8 +562,8 @@ func (v *MutateVisitor) visitPatternRegexpExpr(in *ast.PatternRegexpExpr, flag i
 	if in.Not {
 		flag = flag ^ 1
 	}
-	// regexp mutation
-	v.Candidates[in] = flag
+	// after in.Not
+	v.miningPatternRegexpExpr(in, flag)
 }
 
 // visitUnaryOperationExpr: important bridge
@@ -623,6 +632,13 @@ func (v *MutateVisitor) miningSelectStmt(in *ast.SelectStmt, flag int) {
 	v.addRdMHavingL(in, flag)
 }
 
+func (v *MutateVisitor) miningJoin(in *ast.Join, flag int) {
+	// RdMOnU
+	v.addRdMOnU(in, flag)
+	// RdMOnL
+	v.addRdMOnL(in, flag)
+}
+
 func (v *MutateVisitor) miningBinaryOperationExpr(in *ast.BinaryOperationExpr, flag int) {
 	// FixMCmpOpU
 	v.addFixMCmpOpU(in, flag)
@@ -639,10 +655,6 @@ func (v *MutateVisitor) miningCompareSubqueryExpr(in *ast.CompareSubqueryExpr, f
 	v.addFixMCmpOpU(in, flag)
 	// FixMCmpOpL
 	v.addFixMCmpOpL(in, flag)
-	// FixMCmpU
-	v.addFixMCmpU(in, flag)
-	// FixMCmpL
-	v.addFixMCmpL(in, flag)
 	// FixMCmpSubU
 	v.addFixMCmpSubU(in, flag)
 	// FixMCmpSubL
@@ -663,12 +675,31 @@ func (v *MutateVisitor) miningPatternInExpr(in *ast.PatternInExpr, flag int) {
 	v.addRdMInL(in, flag)
 }
 
+func (v *MutateVisitor) miningPatternLikeExpr(in *ast.PatternLikeExpr, flag int) {
+	// RdMLikeU
+	v.addRdMLikeU(in, flag)
+	// RdMLikeL
+	v.addRdMLikeL(in, flag)
+}
+
+func (v *MutateVisitor) miningPatternRegexpExpr(in *ast.PatternRegexpExpr, flag int) {
+	// RdMRegExpU
+	v.addRdMRegExpU(in, flag)
+	// RdMRegExpL
+	v.addRdMRegExpL(in, flag)
+}
+
 func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, flag int) {
+	if strings.HasSuffix(mutationName, "U") && u == 0 {
+		log.Fatal("strings.HasSuffix(mutationName, \"U\") && u == 0")
+	}
+	if strings.HasSuffix(mutationName, "L") && u != 0 {
+		log.Fatal("strings.HasSuffix(mutationName, \"L\") && u != 0")
+	}
 	var ls []*Candidate = nil
 	ok := false
-	if ls, ok = v.CandidatesT[mutationName]; !ok {
+	if ls, ok = v.Candidates[mutationName]; !ok {
 		ls = make([]*Candidate, 0)
-		v.CandidatesT[mutationName] = ls
 	}
 	ls = append(ls, &Candidate{
 		MutationName: mutationName,
@@ -676,6 +707,7 @@ func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, fl
 		Node:         in,
 		Flag:         flag,
 	})
+	v.Candidates[mutationName] = ls
 }
 
 // ImpoMutate: you can choose any candidate to mutate, each mutation has no side effects.
@@ -712,9 +744,13 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 	case RdMInL:
 		sql, err = doRdMInL(rootNode, candidate.Node, seed)
 	case RdMLikeU:
+		sql, err = doRdMLikeU(rootNode, candidate.Node, seed)
 	case RdMLikeL:
+		sql, err = doRdMLikeL(rootNode, candidate.Node, seed)
 	case RdMRegExpU:
+		sql, err = doRdMRegExpU(rootNode, candidate.Node, seed)
 	case RdMRegExpL:
+		sql, err = doRdMRegExpL(rootNode, candidate.Node, seed)
 	case RdMWhereU:
 		sql, err = doRdMWhereU(rootNode, candidate.Node, seed)
 	case RdMWhereL:
@@ -723,6 +759,10 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 		sql, err = doRdMHavingU(rootNode, candidate.Node, seed)
 	case RdMHavingL:
 		sql, err = doRdMHavingL(rootNode, candidate.Node, seed)
+	case RdMOnU:
+		sql, err = doRdMOnU(rootNode, candidate.Node, seed)
+	case RdMOnL:
+		sql, err = doRdMOnL(rootNode, candidate.Node, seed)
 	case FixMUnionL:
 		sql, err = doFixMUnionL(rootNode, candidate.Node)
 	}
