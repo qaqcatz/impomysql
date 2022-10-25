@@ -1,6 +1,6 @@
 **tidb v5.4.2** 
 
-total functions: 277
+total functions: 274
 
 # Normal Function
 
@@ -66,7 +66,6 @@ const (
 	CurrentTimestamp = "current_timestamp"
 	Curtime          = "curtime"
 	Date             = "date"
-	DateLiteral      = "'tidb`.(dateliteral"
 	DateAdd          = "date_add"
 	DateFormat       = "date_format"
 	DateSub          = "date_sub"
@@ -100,12 +99,10 @@ const (
 	SubTime          = "subtime"
 	Sysdate          = "sysdate"
 	Time             = "time"
-	TimeLiteral      = "'tidb`.(timeliteral"
 	TimeFormat       = "time_format"
 	TimeToSec        = "time_to_sec"
 	TimeDiff         = "timediff"
 	Timestamp        = "timestamp"
-	TimestampLiteral = "'tidb`.(timestampliteral"
 	TimestampAdd     = "timestampadd"
 	TimestampDiff    = "timestampdiff"
 	ToDays           = "to_days"
@@ -205,12 +202,12 @@ const (
 	FormatBytes          = "format_bytes"
 	FormatNanoTime       = "format_nano_time"
 
-	// control functions
+	// control functions -- UNSUPPORTED
 	If     = "if"
 	Ifnull = "ifnull"
 	Nullif = "nullif"
 
-	// miscellaneous functions
+	// miscellaneous functions -- SKIP
 	AnyValue        = "any_value"
 	DefaultFunc     = "default_func"
 	InetAton        = "inet_aton"
@@ -238,7 +235,7 @@ const (
 	GetLock     = "get_lock"
 	ReleaseLock = "release_lock"
 
-	// encryption and compression functions
+	// encryption and compression functions -- SKIP
 	AesDecrypt               = "aes_decrypt"
 	AesEncrypt               = "aes_encrypt"
 	Compress                 = "compress"
@@ -258,7 +255,7 @@ const (
 	UncompressedLength       = "uncompressed_length"
 	ValidatePasswordStrength = "validate_password_strength"
 
-	// json functions
+	// json functions -- SKIP, JSON format is currently not supported.
 	JSONType          = "json_type"
 	JSONExtract       = "json_extract"
 	JSONUnquote       = "json_unquote"
@@ -284,14 +281,14 @@ const (
 	JSONKeys          = "json_keys"
 	JSONLength        = "json_length"
 
-	// TiDB internal function.
+	// TiDB internal function. -- TIDB FEATURES
 	TiDBDecodeKey       = "tidb_decode_key"
 	TiDBDecodeBase64Key = "tidb_decode_base64_key"
 
-	// MVCC information fetching function.
+	// MVCC information fetching function. -- SKIP
 	GetMvccInfo = "get_mvcc_info"
 
-	// Sequence function.
+	// Sequence function. -- SKIP
 	NextVal = "nextval"
 	LastVal = "lastval"
 	SetVal  = "setval"
@@ -326,7 +323,7 @@ type FuncCastExpr struct {
 
 ```golang
 const (
-    // 18
+    // 18 -- UNSUPPORTED
 	// AggFuncCount is the name of Count function.
 	AggFuncCount = "count"
 	// AggFuncSum is the name of Sum function.
@@ -370,7 +367,7 @@ const (
 
 ```golang
 const (
-    // 11
+    // 11 -- UNSUPPORTED
 	// WindowFuncRowNumber is the name of row_number function.
 	WindowFuncRowNumber = "row_number"
 	// WindowFuncRank is the name of rank function.

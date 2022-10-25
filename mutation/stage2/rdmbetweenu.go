@@ -14,7 +14,7 @@ import (
 //   expr between l and r
 //   ->
 //   (expr) >= l and (expr) <= r
-//   -> FixMCmpU )
+//   -> FixMCmpU, 1 and and (expr) <= r, (expr) >= l and 1 )
 func (v *MutateVisitor) addRdMBetweenU(in *ast.BetweenExpr, flag int) {
 	v.addCandidate(RdMBetweenU, 1, in, flag)
 }
@@ -23,7 +23,7 @@ func (v *MutateVisitor) addRdMBetweenU(in *ast.BetweenExpr, flag int) {
 //   expr between l and r
 //   ->
 //   (expr) >= l and (expr) <= r
-//   -> FixMCmpU )
+//   -> FixMCmpU, 1 and and (expr) <= r, (expr) >= l and 1 )
 func doRdMBetweenU(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 	rander := rand.New(rand.NewSource(seed))
 	switch in.(type) {
@@ -58,9 +58,11 @@ func doRdMBetweenU(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		}
 		btn.Expr = newExpr
 		btn.Left = newLeft
-		btn.Right = newRight
+		btn.Right = &ast.ParenthesesExpr{
+			Expr: newRight,
+		}
 		// -> FixMCmpU
-		rd := rander.Intn(2)
+		rd := rander.Intn(4)
 		switch rd {
 		case 0:
 			// FixMCmpOpU, newRight.L
@@ -68,6 +70,18 @@ func doRdMBetweenU(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		case 1:
 			// FixMCmpOpU, newRight.R
 			sql, err = doFixMCmpU(rootNode, newRight.R)
+		case 2:
+			// 1 and newRight.R
+			newRight.L = &test_driver.ValueExpr{
+				Datum: test_driver.NewDatum(1),
+			}
+			sql, err = restore(rootNode)
+		case 3:
+			// newRight.L and 1
+			newRight.R = &test_driver.ValueExpr{
+				Datum: test_driver.NewDatum(1),
+			}
+			sql, err = restore(rootNode)
 		}
 		if err != nil {
 			return nil, errors.New("doRdMBetweenU: -> FixMCmpU: " + err.Error())

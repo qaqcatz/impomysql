@@ -27,7 +27,7 @@ const (
 	//
 	// a {<|<=} b -> (a) + 0 {<|<=} (b) + 1
 	//
-	// may false positive
+	// may false positive, skim
 	FixMCmpU = "FixMCmpU"
 	// *ast.BinaryOperationExpr:
 	//
@@ -35,7 +35,7 @@ const (
 	//
 	// a {<|<=} b -> (a) + 1 {<|<=} (b) + 0
 	//
-	// may false positive
+	// may false positive, skim
 	FixMCmpL = "FixMCmpL"
 	// *ast.CompareSubqueryExpr: ALL true -> false
 	FixMCmpSubU = "FixMCmpSubU"
@@ -49,13 +49,15 @@ const (
 	//   expr between l and r
 	//   ->
 	//   (expr) >= l and (expr) <= r
-	//   -> FixMCmpU )
+	//   -> FixMCmpU, 1 and and (expr) <= r, (expr) >= l and 1 )
+	// may false positive, skim
 	RdMBetweenU = "RdMBetweenU"
 	// *ast.BetweenExpr:
 	//   expr between l and r
 	//   ->
 	//   (expr) >= l and (expr) <= r
 	//   -> FixMCmpOpL / FixMCmpL )
+	// may false positive, skim
 	RdMBetweenL = "RdMBetweenL"
 	// *ast.PatternInExpr: in(x,x,x) -> in(x,x,x,...)
 	RdMInU = "RdMInU"
@@ -587,25 +589,25 @@ func (v *MutateVisitor) visitUnaryOperationExpr(in *ast.UnaryOperationExpr, flag
 	}
 }
 
-// visitFuncCallExpr: todo
 func (v *MutateVisitor) visitFuncCallExpr(in *ast.FuncCallExpr, flag int) {
 	if in == nil {
 		return
 	}
+	// skim func call
 }
 
-// visitFuncCastExpr: todo
 func (v *MutateVisitor) visitFuncCastExpr(in *ast.FuncCastExpr, flag int) {
 	if in == nil {
 		return
 	}
+	// skim cast
 }
 
-// visitTrimDirectionExpr: todo
 func (v *MutateVisitor) visitTrimDirectionExpr(in *ast.TrimDirectionExpr, flag int) {
 	if in == nil {
 		return
 	}
+	// skim trim
 }
 
 func (v *MutateVisitor) miningSetOprSelectList(in *ast.SetOprSelectList, flag int) {
@@ -645,9 +647,9 @@ func (v *MutateVisitor) miningBinaryOperationExpr(in *ast.BinaryOperationExpr, f
 	// FixMCmpOpL
 	v.addFixMCmpOpL(in, flag)
 	// FixMCmpU
-	v.addFixMCmpU(in, flag)
+	//v.addFixMCmpU(in, flag)
 	// FixMCmpL
-	v.addFixMCmpL(in, flag)
+	//v.addFixMCmpL(in, flag)
 }
 
 func (v *MutateVisitor) miningCompareSubqueryExpr(in *ast.CompareSubqueryExpr, flag int) {
@@ -663,9 +665,9 @@ func (v *MutateVisitor) miningCompareSubqueryExpr(in *ast.CompareSubqueryExpr, f
 
 func (v *MutateVisitor) miningBetweenExpr(in *ast.BetweenExpr, flag int) {
 	// RdMBetweenU
-	v.addRdMBetweenU(in, flag)
+	//v.addRdMBetweenU(in, flag)
 	// RdMBetweenL
-	v.addRdMBetweenL(in, flag)
+	//v.addRdMBetweenL(in, flag)
 }
 
 func (v *MutateVisitor) miningPatternInExpr(in *ast.PatternInExpr, flag int) {
@@ -723,10 +725,10 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 		sql, err = doFixMCmpOpU(rootNode, candidate.Node)
 	case FixMCmpOpL:
 		sql, err = doFixMCmpOpL(rootNode, candidate.Node)
-	case FixMCmpU:
-		sql, err = doFixMCmpU(rootNode, candidate.Node)
-	case FixMCmpL:
-		sql, err = doFixMCmpL(rootNode, candidate.Node)
+	//case FixMCmpU:
+	//	sql, err = doFixMCmpU(rootNode, candidate.Node)
+	//case FixMCmpL:
+	//	sql, err = doFixMCmpL(rootNode, candidate.Node)
 	case FixMCmpSubU:
 		sql, err = doFixMCmpSubU(rootNode, candidate.Node)
 	case FixMCmpSubL:
@@ -735,10 +737,10 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 		sql, err = doFixMUnionAllU(rootNode, candidate.Node)
 	case FixMUnionAllL:
 		sql, err = doFixMUnionAllL(rootNode, candidate.Node)
-	case RdMBetweenU:
-		sql, err = doRdMBetweenU(rootNode, candidate.Node, seed)
-	case RdMBetweenL:
-		sql, err = doRdMBetweenL(rootNode, candidate.Node, seed)
+	//case RdMBetweenU:
+	//	sql, err = doRdMBetweenU(rootNode, candidate.Node, seed)
+	//case RdMBetweenL:
+	//	sql, err = doRdMBetweenL(rootNode, candidate.Node, seed)
 	case RdMInU:
 		sql, err = doRdMInU(rootNode, candidate.Node, seed)
 	case RdMInL:

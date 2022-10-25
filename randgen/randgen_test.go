@@ -90,7 +90,7 @@ func TestRandGenRd100(t *testing.T) {
 	testRandGenCommon(t, ZZTest, YYImpo, 100, time.Now().UnixNano(), "", false)
 }
 
-// 3MB Memory
+//3MB Memory
 //func TestRandGenRd10000(t *testing.T) {
 //	testRandGenCommon(t, ZZTest, YYImpo, 10000, time.Now().UnixNano(), "",false)
 //}

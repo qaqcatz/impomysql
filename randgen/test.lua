@@ -147,6 +147,10 @@ end
 
 print(seed)
 
+print(math.random())
+print(math.random())
+print(math.random())
+
 print(stackTop(curAStack)[1])
 assert(stackTop(curAStack)[1] == "f1")
 pushStack(childAStack,{"h","z","y"})

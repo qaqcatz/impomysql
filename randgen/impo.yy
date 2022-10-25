@@ -6,7 +6,7 @@
     -- (2) We have made a lot of effort to analyze the features of MYSQL:
     --     * analyze https://dev.mysql.com/doc/refman/8.0/en/
     --     * analyze all 175 ast.Node of tidb parser(https://github.com/pingcap/tidb/tree/v5.4.2/parser),
-    --       of which 57 nodes are related to query, including 31 operators and 317 functions.
+    --       of which 57 nodes are related to query, including 31 operators and 274 functions.
     --     Nevertheless, we may still be ill-considered. Please contact us via github issue to help us improve impo.
     -- impo works on SELECT statement, focus on WHERE and HAVING(ON).
     -- The unsupported/supported features are as follows: (we will use operations to summarize operators / functions / statements / clauses uniformly)
@@ -47,6 +47,7 @@
     --     * LIKE, REGEXP
     --     * Index Hints
     --     * others: BINARY, INTERVAL, CHARACTER SET, COLLATE, CONVERT, CAST
+    --     * the functions we support are listed in https://github.com/qaqcatz/impomysql/tree/main/documents/functions
     -- This .yy file can also be used to generate random sqls.
     -- Guided by practical concerns, the number of some operations is limited:
     --   * the number of fields in each SELECT statement is 3,
@@ -474,12 +475,15 @@ interval_unit:
     | YEAR_MONTH
 
 simple_expr:
+    literal_or_identifier
+    | function_call
+
+literal_or_identifier:
     # boost weight
     literal
     | identifier
     | identifier
     | identifier
-    # | function_call
 
 # https://dev.mysql.com/doc/refman/8.0/en/literals.html
 literal:
@@ -503,6 +507,7 @@ strl:
 numl:
     _digit
     | _int
+    | { print(math.random()) }
 
 datetimel:
     _year
@@ -523,3 +528,116 @@ nullv:
 
 identifier:
     columnname
+
+function_call:
+    math_functions
+    | time_functions
+    | string_functions
+    | information_functions
+
+math_functions:
+    {print("abs")}(numl)
+    | {print("acos")}(numl)
+    | {print("asin")}(numl)
+    | {print("atan")}(numl)
+    | {print("atan2")}(numl)
+    | {print("ceil")}(numl)
+    | {print("ceiling")}(numl)
+    | {print("cos")}(numl)
+    | {print("cot")}(numl)
+    | {print("crc32")}(literal)
+    | {print("degrees")}(numl)
+    | {print("floor")}(numl)
+    | {print("ln")}(numl)
+    | {print("log")}(numl)
+    | {print("log2")}(numl)
+    | {print("log10")}(numl)
+    | {print("pi()")}
+    | {print("radians")}(numl)
+    | {print("round")}(numl)
+    | {print("sign")}(numl)
+    | {print("sin")}(numl)
+    | {print("sqrt")}(numl)
+    | {print("tan")}(numl)
+
+time_functions:
+    {print("adddate")}(_date, interval_expr)
+    | {print("addtime")}(_datetime, _time)
+    | {print("date")}(_datetime)
+    | {print("date_add")}(_date, interval_expr)
+    | {print("date_sub")}(_date, interval_expr)
+    | {print("datediff")}(_datetime, _date)
+    | {print("day")}(_date)
+    | {print("dayname")}(_date)
+    | {print("dayofmonth")}(_date)
+    | {print("dayofweek")}(_date)
+    | {print("dayofyear")}(_date)
+    | {print("from_days")}(_int)
+    | {print("from_unixtime")}(_int)
+    | {print("hour")}(_time)
+    | {print("microsecond")}(_datetime)
+    | {print("minute")}(_datetime)
+    | {print("month")}(_date)
+    | {print("monthname")}(_date)
+    | {print("quarter")}(_date)
+    | {print("sec_to_time")}(_int)
+    | {print("second")}(_time)
+    | {print("subdate")}(_date, interval_expr)
+    | {print("subtime")}(_datetime, _time)
+    | {print("time")}(_datetime)
+    | {print("time_to_sec")}(_time)
+    | {print("timediff")}(_datetime, _datetime)
+    | {print("timestamp")}(_date)
+    | {print("to_days")}(_date)
+    | {print("to_seconds")}(_datetime)
+    | {print("unix_timestamp")}(_datetime)
+    | {print("week")}(_date)
+    | {print("weekday")}(_datetime)
+    | {print("weekofyear")}(_date)
+    | {print("year")}(_date)
+    | {print("yearweek")}(_date)
+    | {print("last_day")}(_datetime)
+
+string_functions:
+    {print("ASCII")}(literal_or_identifier)
+    | {print("BIN")}(literal_or_identifier)
+    | {print("CONCAT")}(literal_or_identifier, literal_or_identifier, literal_or_identifier)
+    | {print("CONCAT_WS")}(literal_or_identifier, literal_or_identifier, literal_or_identifier)
+    | {print("FIELD")}(literal_or_identifier, literal_or_identifier, literal_or_identifier, literal_or_identifier)
+    | {print("INSTR")}(literal_or_identifier, literal_or_identifier)
+    | {print("LCASE")}(literal_or_identifier)
+    | {print("LEFT")}(literal_or_identifier, _digit)
+    | {print("LENGTH")}(literal_or_identifier)
+    | {print("LOCATE")}(literal_or_identifier, literal_or_identifier)
+    | {print("LOWER")}(literal_or_identifier)
+    | {print("LTRIM")}(literal_or_identifier)
+    | {print("OCT")}(literal_or_identifier)
+    | {print("OCTET_LENGTH")}(literal_or_identifier)
+    | {print("ORD")}(literal_or_identifier)
+    | {print("QUOTE")}(literal_or_identifier)
+    | {print("REPEAT")}(literal_or_identifier, _digit)
+    | {print("REPLACE")}(literal_or_identifier, literal_or_identifier, literal_or_identifier)
+    | {print("REVERSE")}(literal_or_identifier)
+    | {print("RIGHT")}(literal_or_identifier, _digit)
+    | {print("RTRIM")}(literal_or_identifier)
+    | {print("SPACE")}(_digit)
+    | {print("STRCMP")}(literal_or_identifier, literal_or_identifier)
+    | {print("SUBSTRING")}(literal_or_identifier, _digit)
+    | {print("SUBSTR")}(literal_or_identifier, _digit)
+    | {print("TO_BASE64")}(literal_or_identifier)
+    | {print("TRIM")}(literal_or_identifier)
+    | {print("UPPER")}(literal_or_identifier)
+    | {print("UCASE")}(literal_or_identifier)
+    | {print("HEX")}(literal_or_identifier)
+    | {print("UNHEX")}(literal_or_identifier)
+    | {print("BIT_LENGTH")}(literal_or_identifier)
+    | {print("CHAR_LENGTH")}(literal_or_identifier)
+    | {print("SOUNDEX")}(literal_or_identifier)
+
+information_functions:
+    {print("CHARSET")}(literal_or_identifier)
+    | {print("COERCIBILITY")}(literal_or_identifier)
+    | {print("COLLATION")}(literal_or_identifier)
+    | {print("format_bytes")}(literal_or_identifier)
+
+

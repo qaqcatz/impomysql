@@ -215,4 +215,5 @@ func TestImpoMutateRegExp(t *testing.T) {
 func TestImpoMutateBetween(t *testing.T) {
 	testImpoMutateCommon(t, testsqls.SQLBetween, 110001)
 	testImpoMutateCommon(t, testsqls.SQLBetween2, 110002)
+	//testImpoMutateCommon(t, testsqls.SQLBetween3, 110003)
 }

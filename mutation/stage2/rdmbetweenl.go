@@ -58,9 +58,11 @@ func doRdMBetweenL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		}
 		btn.Expr = newExpr
 		btn.Left = newLeft
-		btn.Right = newRight
+		btn.Right = &ast.ParenthesesExpr{
+			Expr: newRight,
+		}
 		// -> FixMCmpOpL / FixMCmpL
-		rd := rander.Intn(4)
+		rd := rander.Intn(6)
 		switch rd {
 		case 0:
 			// FixMCmpOpL, newRight.L
