@@ -7,17 +7,19 @@ import (
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	_ "github.com/pingcap/tidb/parser/test_driver"
+	"github.com/qaqcatz/impomysql/connector"
 )
 
-// InitVisitor: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
+// InitVisitor: Remove aggregate function(and group by),
+// window function, LEFT|RIGHT JOIN, Limit.
 type InitVisitor struct {
 }
 
 func (v *InitVisitor) Enter(in ast.Node) (ast.Node, bool) {
-	RmAgg(in)
-	RmWindow(in)
-	RmLRJoin(in)
-	RmLimit(in)
+	rmAgg(in)
+	rmWindow(in)
+	rmLRJoin(in)
+	rmLimit(in)
 	return in, false
 }
 
@@ -25,20 +27,34 @@ func (v *InitVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-// Init: Remove aggregate function(and group by), window function, LEFT|RIGHT JOIN, Limit.
+type InitResult struct {
+	InitSql string
+	Err error
+	ExecResult *connector.Result
+}
+
+// Init: for the input sql, remove aggregate function(and group by),
+// window function, LEFT|RIGHT JOIN, Limit.
 //
-// The transformed sql may fail to execute. It is recommended to execute
-// the transformed sql to do some verification.
+// Note that:
 //
-// Only Support SELECT statement.
-func Init(sql string) (string, error) {
+// (1) The transformed sql may fail to execute.
+//
+// (2) we only Support SELECT statement.
+func Init(sql string) *InitResult {
+	initResult := &InitResult{
+		InitSql: "",
+		Err: nil,
+	}
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.New("Init: p.Parse() error: " + err.Error())
+		initResult.Err = err
+		return initResult
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("Init: stmtNodes == nil || len(stmtNodes) == 0 ")
+		initResult.Err = errors.New("Init: stmtNodes == nil || len(stmtNodes) == 0 ")
+		return initResult
 	}
 	rootNode := &stmtNodes[0]
 
@@ -46,7 +62,8 @@ func Init(sql string) (string, error) {
 	case *ast.SelectStmt:
 	case *ast.SetOprStmt:
 	default:
-		return "", errors.New("Init: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
+		initResult.Err = errors.New("Init: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
+		return initResult
 	}
 
 	v := &InitVisitor{}
@@ -56,7 +73,20 @@ func Init(sql string) (string, error) {
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err = (*rootNode).Restore(ctx)
 	if err != nil {
-		return "", errors.New("Init: (*rootNode).Restore() error: " + err.Error())
+		initResult.Err = err
+		return initResult
 	}
-	return buf.String(), nil
+	initResult.InitSql = buf.String()
+	return initResult
+}
+
+// InitAndExec: Init + exec
+func InitAndExec(sql string, conn *connector.Connector) *InitResult {
+	initResult := Init(sql)
+	if initResult.Err != nil {
+		return initResult
+	}
+	result := conn.ExecSQL(initResult.InitSql)
+	initResult.ExecResult = result
+	return initResult
 }

@@ -69,6 +69,7 @@
     --     such as CHARACTER SET, COLLATE, CONVERT(we use CAST instead of CONVERT).
     --   * index hints cannot generate FOR.
     --   * only support INTERVAL 1 unit.
+    --   * do not support DISTINCT + ORDER BY
     --   Take it easy, their number is not limited in impo.
 
     -- How this .yy works?

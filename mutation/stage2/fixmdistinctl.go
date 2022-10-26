@@ -9,7 +9,10 @@ import (
 
 // addFixMDistinctL: FixMDistinctL: *ast.SelectStmt: Distinct false -> true
 func (v *MutateVisitor) addFixMDistinctL(in *ast.SelectStmt, flag int) {
-	if in.Distinct == false {
+	// ERROR 3065 (HY000): Expression #1 of ORDER BY clause is not in SELECT list,
+	// references column xxx which is not in SELECT list; this is incompatible with DISTINCT
+	// order by + distinct may error
+	if in.Distinct == false && in.OrderBy == nil {
 		v.addCandidate(FixMDistinctL, 0, in, flag)
 	}
 }

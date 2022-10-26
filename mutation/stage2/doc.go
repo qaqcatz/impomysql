@@ -1,8 +1,11 @@
 // Package stage2: mutate a sql statement.
 //
-// 1. visit the sub-AST according to randgen.YYImpo and obtain the candidate set of  mutation points.
+// 1. visit the sub-AST and obtain the candidate set of  mutation points.
 //
 // 2. you can choose any mutation point to mutate, each mutation has no side effects.
+//
+// How to use: If you want to choose mutation points yourself, see CalCandidates and ImpoMutate / ImpoMutateAndExec.
+// If you want to try all of the mutation points, see MutateAll.
 //
 // all mutations:
 //   FixMDistinctU

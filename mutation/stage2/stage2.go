@@ -3,11 +3,14 @@ package stage2
 import (
 	"bytes"
 	"errors"
+	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
 	_ "github.com/pingcap/tidb/parser/test_driver"
+	"github.com/qaqcatz/impomysql/connector"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -106,7 +109,7 @@ const (
 //     SELECT * FROM T WHERE (X > 0) IS FALSE;
 //     [lower mutation ] x > 0 -> X > 1
 //     The result set will expand
-// Obviously you should use !(U ^ Flag) to calculate the effect of mutation
+// Obviously you should use ((U^Flag)^1) == 1 to calculate the effect of mutation
 type Candidate struct {
 	MutationName string // mutation name
 	// 1: upper mutation, strings.HasSuffix(MutationName, "U"): true;
@@ -116,23 +119,10 @@ type Candidate struct {
 	Flag int      // 1: positive, 0: negative
 }
 
-// MutateVisitor: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
+// MutateVisitor: visit the sub-AST and obtain the candidate set of
+// mutation points, see Candidates.
 //
-// Each mutation has its own name.
-//
-// about the prefix {FixM|RdM}(currently not working):
-//
-// - FixM means fixed mutation;
-//
-// - RdM means random mutation;
-//
-// about the suffix {U|L}:
-//
-// - U means upper mutation,
-//
-// - L means lower mutation.
-//
-// see:
+// Each mutation has its own name, see:
 //   FixMDistinctU
 //	 FixMDistinctL
 //	 FixMCmpOpU
@@ -158,23 +148,46 @@ type Candidate struct {
 //	 RdMOnU
 //	 RdMOnL
 //	 FixMUnionL
-// function:
+//
+// about the prefix {FixM|RdM}(currently not working):
+//
+// - FixM means fixed mutation;
+//
+// - RdM means random mutation;
+//
+// about the suffix {U|L}:
+//
+// - U means upper mutation,
+//
+// - L means lower mutation.
+//
+// There are lots of functions under MutateVisitor, we classify them by prefix:
 //   visitxxx: calculate flag, call miningxxx
 //   miningxxx: call addxxx
-//   addxxx: calculate mutation u/l
+//   addxxx: add mutation u/l to Candidates
 type MutateVisitor struct {
+	Root ast.Node
 	Candidates map[string][]*Candidate // mutation name : slice of *Candidate
 }
 
-// CalCandidates: visit the sub-AST according to randgen.YYImpo and obtain the candidate set of mutation points.
-func CalCandidates(rootNode ast.Node) *MutateVisitor {
+// CalCandidates: see MutateVisitor
+func CalCandidates(sql string) (*MutateVisitor, error) {
+	p := parser.New()
+	stmtNodes, _, err := p.Parse(sql, "", "")
+	if err != nil {
+		return nil, errors.New("CalCandidates: " + err.Error())
+	}
+	if stmtNodes == nil || len(stmtNodes) == 0 {
+		return nil, errors.New("CalCandidates: stmtNodes == nil || len(stmtNodes) == 0")
+	}
+	rootNode := &stmtNodes[0]
 	v := &MutateVisitor{
+		Root: *rootNode,
 		Candidates: make(map[string][]*Candidate)}
-	v.visit(rootNode, 1)
-	return v
+	v.visit(*rootNode, 1)
+	return v, nil
 }
 
-// visit: top
 func (v *MutateVisitor) visit(in ast.Node, flag int) {
 	switch in.(type) {
 	case *ast.SetOprStmt:
@@ -184,7 +197,6 @@ func (v *MutateVisitor) visit(in ast.Node, flag int) {
 	}
 }
 
-// visitSetOprStmt: top1
 func (v *MutateVisitor) visitSetOprStmt(in *ast.SetOprStmt, flag int) {
 	if in == nil {
 		return
@@ -232,7 +244,7 @@ func (v *MutateVisitor) visitSubqueryExpr(in *ast.SubqueryExpr, flag int) {
 	v.visitResultSetNode(in.Query, flag)
 }
 
-// visitResultSetNode: include
+// visitResultSetNode: important bridge, include
 // SelectStmt, SubqueryExpr, TableSource, TableName, Join and SetOprStmt.
 func (v *MutateVisitor) visitResultSetNode(in ast.ResultSetNode, flag int) {
 	if in == nil {
@@ -261,7 +273,7 @@ func (v *MutateVisitor) visitTableSource(in *ast.TableSource, flag int) {
 	v.visitResultSetNode(in.Source, flag)
 }
 
-// visitSelect: top1, miningSelectStmt
+// visitSelect: miningSelectStmt
 func (v *MutateVisitor) visitSelect(in *ast.SelectStmt, flag int) {
 	if in == nil {
 		return
@@ -316,7 +328,7 @@ func (v *MutateVisitor) visitHavingClause(in *ast.HavingClause, flag int) {
 	v.visitExprNode(in.Expr, flag)
 }
 
-// visitExprNode: main
+// visitExprNode: important bridge
 func (v *MutateVisitor) visitExprNode(in ast.ExprNode, flag int) {
 	if in == nil {
 		return
@@ -713,7 +725,7 @@ func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, fl
 }
 
 // ImpoMutate: you can choose any candidate to mutate, each mutation has no side effects.
-func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, error) {
+func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) (string, error) {
 	var sql []byte = nil
 	var err error = nil
 	switch candidate.MutationName {
@@ -769,9 +781,20 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) ([]byte, er
 		sql, err = doFixMUnionL(rootNode, candidate.Node)
 	}
 	if err != nil {
-		return nil, errors.New("ImpoMutate: " +  err.Error())
+		return "", errors.New("ImpoMutate: " +  err.Error())
 	}
-	return sql, nil
+	return string(sql), nil
+}
+
+// ImpoMutateAndExec: ImpoMutate + exec.
+func ImpoMutateAndExec(rootNode ast.Node, candidate *Candidate, seed int64,
+	conn connector.Connector) (string, *connector.Result, error) {
+	sql, err := ImpoMutate(rootNode, candidate, seed)
+	if err != nil {
+		return "", nil, errors.New("ImpoMutateAndExec: " + err.Error())
+	}
+	result := conn.ExecSQL(sql)
+	return sql, result, nil
 }
 
 func restore(rootNode ast.Node) ([]byte, error) {
@@ -782,4 +805,85 @@ func restore(rootNode ast.Node) ([]byte, error) {
 		return nil, errors.New("restore error: " + err.Error())
 	}
 	return buf.Bytes(), nil
+}
+
+// MutateResult: slice of (mutation name, mutated sql, isUpper, error)
+//
+// IsUppers: Does the theoretical execution result of
+// the current mutated statement increase?
+type MutateResult struct {
+	MutNames []string
+	MutSqls  []string
+	IsUppers []bool // (Candidate.U^Candidate.Flag)^1) == 1
+	MutErrs  []error
+	Err      error
+
+	ExecResults []*connector.Result // exec MutSqls, nil if MutErrs[i] != nil
+}
+
+func (mutateResult *MutateResult) ToString() string {
+	res := ""
+	for i, mutName := range mutateResult.MutNames {
+		if i != 0 {
+			res += "\n"
+		}
+		res += "["+strconv.Itoa(i)+"]==========\n"
+		res += "[MutName] " + mutName + "\n"
+		if mutateResult.MutErrs[i] != nil {
+			res += "[MutErr] " + mutateResult.MutErrs[i].Error()
+		} else {
+			res += "[MutSql] " + mutateResult.MutSqls[i] + "\n"
+			res += "[IsUpper] " + strconv.FormatBool(mutateResult.IsUppers[i])
+		}
+	}
+	return res
+}
+
+// MutateAll: For the input sql, try all of its mutation points.
+// We will save the mutated sqls into *MutateResult.
+func MutateAll(sql string, seed int64) *MutateResult {
+	mutateResult := &MutateResult {
+		MutNames: make([]string, 0),
+		MutSqls:  make([]string, 0),
+		IsUppers: make([]bool, 0),
+		MutErrs:  make([]error, 0),
+		Err:      nil,
+	}
+
+	v, err := CalCandidates(sql)
+	if err != nil {
+		mutateResult.Err = err
+		return mutateResult
+	}
+
+	root := v.Root
+	for mutationName, candidateList := range v.Candidates {
+		for _, candidate := range candidateList {
+			mutateResult.MutNames = append(mutateResult.MutNames, mutationName)
+			mutateResult.IsUppers = append(mutateResult.IsUppers, ((candidate.U^candidate.Flag)^1) == 1)
+			newSql, err := ImpoMutate(root, candidate, seed)
+			mutateResult.MutErrs = append(mutateResult.MutErrs, err)
+			mutateResult.MutSqls = append(mutateResult.MutSqls, newSql)
+		}
+	}
+
+	return mutateResult
+}
+
+// MutateAllAndExec: MutateAll and exec.
+func MutateAllAndExec(sql string, seed int64, conn *connector.Connector) *MutateResult {
+	mutateResult := MutateAll(sql, seed)
+	if mutateResult.Err != nil {
+		return mutateResult
+	}
+	mutateResult.ExecResults = make([]*connector.Result, 0)
+	for i, sqlm := range mutateResult.MutSqls {
+		if mutateResult.MutErrs[i] != nil {
+			mutateResult.ExecResults = append(mutateResult.ExecResults, nil)
+		} else {
+			result := conn.ExecSQL(sqlm)
+			mutateResult.ExecResults = append(mutateResult.ExecResults, result)
+		}
+	}
+	return mutateResult
 }

@@ -11,10 +11,15 @@ import (
 )
 
 func TestRandGenJson(t *testing.T) {
-	//sqls, err := RandGen(ZZTest, YYImpo, 100, 123456)
-	sqls, err := RandGen(ZZTest, YYImpo, 100, time.Now().UnixNano())
-	if err != nil {
-		t.Fatal(err.Error())
+	config := &Config{
+		ZZFilePath: testsqls.GetTestZZPath(),
+		YYFilePath: testsqls.GetTestYYPath(),
+		QueriesNum: 100,
+		Seed:       time.Now().UnixNano(),
+	}
+	sqls := RandGen(config)
+	if sqls.Err != nil {
+		t.Fatal(sqls.Err.Error())
 	}
 	data, err := json.Marshal(sqls)
 	if err != nil {
@@ -30,14 +35,13 @@ func TestRandGenJson(t *testing.T) {
 	}
 }
 
-func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queriesNum int, seed int64, name string, log bool) {
-	//sqls, err := RandGen(ZZTest, YYTest, 100, 123456)
-	sqls, err := RandGen(zzFilePath, yyFilePath, queriesNum, seed)
-	if err != nil {
-		t.Fatal(err.Error())
+func testRandGenCommon(t *testing.T, config *Config, name string, log bool) {
+	sqls := RandGen(config)
+	if sqls.Err != nil {
+		t.Fatal(sqls.Err.Error())
 	}
 
-	err = testsqls.InitDBTEST()
+	err := testsqls.InitDBTEST()
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -46,10 +50,7 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 		t.Fatal(err.Error())
 	}
 
-	sqlsExecutor1, err := sqlsexecutor.NewSQLSExecutorS(sqls.DDLs)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	sqlsExecutor1 := sqlsexecutor.NewSQLSExecutorS(sqls.DDLs)
 	sqlsExecutor1.Exec(conn)
 
 	packagePath, err := getPackagePath()
@@ -63,13 +64,10 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 			t.Fatal(err.Error())
 		}
 	} else {
-		t.Log(zzFilePath, ":\n", sqlsExecutor1.ToShortString())
+		t.Log(config.ZZFilePath, ":\n", sqlsExecutor1.ToShortString())
 	}
 
-	sqlsExecutor2, err := sqlsexecutor.NewSQLSExecutorS(sqls.RandSQLs)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	sqlsExecutor2 := sqlsexecutor.NewSQLSExecutorS(sqls.RandSQLs)
 	sqlsExecutor2.Exec(conn)
 
 	if log {
@@ -78,19 +76,37 @@ func testRandGenCommon(t *testing.T, zzFilePath string, yyFilePath string, queri
 			t.Fatal(err.Error())
 		}
 	} else {
-		t.Log(yyFilePath, ":\n", sqlsExecutor2.ToShortString())
+		t.Log(config.YYFilePath, ":\n", sqlsExecutor2.ToShortString())
 	}
 }
 
 func TestRandGenRd100Log(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYImpo, 100, time.Now().UnixNano(), "fix100", true)
+	config := &Config{
+		ZZFilePath: testsqls.GetTestZZPath(),
+		YYFilePath: testsqls.GetTestYYPath(),
+		QueriesNum: 100,
+		Seed:       time.Now().UnixNano(),
+	}
+	testRandGenCommon(t, config, "fix100", true)
 }
 
 func TestRandGenRd100(t *testing.T) {
-	testRandGenCommon(t, ZZTest, YYImpo, 100, time.Now().UnixNano(), "", false)
+	config := &Config{
+		ZZFilePath: testsqls.GetTestZZPath(),
+		YYFilePath: testsqls.GetTestYYPath(),
+		QueriesNum: 100,
+		Seed:       time.Now().UnixNano(),
+	}
+	testRandGenCommon(t, config, "", false)
 }
 
 //3MB Memory
 //func TestRandGenRd10000(t *testing.T) {
-//	testRandGenCommon(t, ZZTest, YYImpo, 10000, time.Now().UnixNano(), "",false)
+//	config := &Config{
+//		ZZFilePath: testsqls.GetTestZZPath(),
+//		YYFilePath: testsqls.GetTestYYPath(),
+//		QueriesNum: 10000,
+//		Seed: time.Now().UnixNano(),
+//	}
+//	testRandGenCommon(t, config, "",false)
 //}

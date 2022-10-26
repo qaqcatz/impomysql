@@ -1,24 +1,11 @@
 package stage1
 
 import (
-	"errors"
 	"github.com/qaqcatz/impomysql/sqlsexecutor"
 	"github.com/qaqcatz/impomysql/testsqls"
-	"io/ioutil"
-	"path"
-	"runtime"
 	"strconv"
 	"testing"
 )
-
-// getPackagePath: get the package actual path, then you can read files under the path.
-func getPackagePath() (string, error) {
-	if _, file, _, ok := runtime.Caller(0); !ok {
-		return "", errors.New("PackagePath: runtime.Caller(0) error ")
-	} else {
-		return path.Join(file, "../"), nil
-	}
-}
 
 func testInitCommon(t *testing.T, sql string) {
 	if err := testsqls.EnsureDBTEST(); err != nil {
@@ -31,10 +18,10 @@ func testInitCommon(t *testing.T, sql string) {
 	if err := testsqls.SQLExec(sql); err != nil {
 		t.Fatal(err.Error())
 	}
-	if sqlm, err := Init(sql); err != nil {
-		t.Fatal(err.Error())
+	if initResult := Init(sql); initResult.Err != nil {
+		t.Fatal(initResult.Err.Error())
 	} else {
-		if err := testsqls.SQLExec(sqlm); err != nil {
+		if err := testsqls.SQLExec(initResult.InitSql); err != nil {
 			t.Fatal(err.Error())
 		}
 	}
@@ -79,15 +66,7 @@ func testInitCommon2(t *testing.T, sqlFileName string, oracle int) {
 	}
 	sqlsExecutor.Exec(conn)
 
-	packagePath, err := getPackagePath()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+".txt"), []byte(sqlsExecutor.ToString()), 0777)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	// t.Log(sqlsExecutor.ToString())
 
 	passedNum := 0
 	failedNum := 0
@@ -98,40 +77,35 @@ func testInitCommon2(t *testing.T, sqlFileName string, oracle int) {
 			continue
 		}
 
-		sqlm, err := Init(sqlsExecutor.ASTs[i].Text())
-		if err != nil {
+		initResult := Init(sqlsExecutor.ASTs[i].Text())
+		if initResult.Err != nil {
 			failedNum += 1
 			failedStr += "========================================\n"
 			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			failedStr += "@@@@@@@@@@Init failed!@@@@@@@@@@\n" + err.Error() + "\n"
+			failedStr += "@@@@@@@@@@Init failed!@@@@@@@@@@\n" + initResult.Err.Error() + "\n"
 			continue
 		}
 
-		resultm := conn.ExecSQL(sqlm)
+		resultm := conn.ExecSQL(initResult.InitSql)
 		if resultm.Err != nil {
 			failedNum += 1
 			failedStr += "========================================\n"
 			failedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			failedStr += "[Init] " + sqlm + "\n"
+			failedStr += "[Init] " + initResult.InitSql + "\n"
 			failedStr += resultm.ToString() + "\n"
 		} else {
 			passedNum += 1
 			passedStr += "========================================\n"
 			passedStr += "[sql " + strconv.Itoa(i) + "] " + sqlsExecutor.ASTs[i].Text() + "\n"
-			passedStr += "[Init] " + sqlm + "\n"
+			passedStr += "[Init] " + initResult.InitSql + "\n"
 			passedStr += resultm.ToString() + "\n"
 		}
 	}
 	passedStr = strconv.Itoa(passedNum) + "\n" + passedStr
 	failedStr = strconv.Itoa(failedNum) + "\n" + failedStr
-	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+"_pass.txt"), []byte(passedStr), 0777)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFileName+"_fail.txt"), []byte(failedStr), 0777)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+
+	//t.Log(passedStr)
+	//t.Log(failedStr)
 
 	if passedNum != oracle {
 		t.Fatal("passedNum != oracle: [passedNum]", passedNum, "[oracle]", oracle)

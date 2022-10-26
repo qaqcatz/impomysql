@@ -1,22 +1,9 @@
 package sqlsexecutor
 
 import (
-	"errors"
 	"github.com/qaqcatz/impomysql/testsqls"
-	"io/ioutil"
-	"path"
-	"runtime"
 	"testing"
 )
-
-// getPackagePath: get the package actual path, then you can read files under the path.
-func getPackagePath() (string, error) {
-	if _, file, _, ok := runtime.Caller(0); !ok {
-		return "", errors.New("PackagePath: runtime.Caller(0) error ")
-	} else {
-		return path.Join(file, "../"), nil
-	}
-}
 
 func TestExtractSQL(t *testing.T) {
 	err := testsqls.EnsureDBTEST()
@@ -100,14 +87,7 @@ func testSQLSExecutor_ExecCommon(t *testing.T, sqlFile string, oracle int) {
 	}
 	sqlsExecutor.Exec(conn)
 
-	packagePath, err := getPackagePath()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	err = ioutil.WriteFile(path.Join(packagePath, "results_"+sqlFile+".txt"), []byte(sqlsExecutor.ToString()), 0777)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	//t.Log(sqlsExecutor.ToString())
 
 	if sqlsExecutor.PassedSQLNum != oracle {
 		t.Fatal("sqlsExecutor.PassedSQLNum != oracle: ", sqlsExecutor.PassedSQLNum, oracle)

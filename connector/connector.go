@@ -75,6 +75,22 @@ func (result *Result) ToString() string {
 	return str
 }
 
+// FlatRows: [["1","2"],["3","4"]] -> ["1,2", "3,4"]
+func (result *Result) FlatRows() []string {
+	flt := make([]string, 0)
+	for _, r := range result.Rows {
+		t := ""
+		for i, e := range r {
+			if i != 0 {
+				t += ","
+			}
+			t += e
+		}
+		flt = append(flt, t)
+	}
+	return flt
+}
+
 // ExecSQL: execute sql, return *Result.
 func (conn *Connector) ExecSQL(sql string) *Result {
 	startTime := time.Now()

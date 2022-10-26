@@ -38,3 +38,5 @@ package stage1
 // uuid_short
 // uuid_to_bin
 // bin_to_uuid
+
+// random_bytes

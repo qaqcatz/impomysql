@@ -125,3 +125,8 @@ func TestLearnASTLIKE(t *testing.T) {
 func TestLearnASTRegExp(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLRegExp);
 }
+
+func TestLearnASTEX(t *testing.T) {
+	testLearnASTCommon(t, testsqls.SQLEX2);
+	//testLearnASTCommon(t, "select * from COMPANY where 9223372036854775807 + 1 > 1;");
+}

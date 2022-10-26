@@ -95,6 +95,10 @@ func (sqlsExecutor *SQLSExecutor) ToString() string {
 	return str
 }
 
+func (sqlsExecutor *SQLSExecutor) IsPass(i int) bool {
+	return sqlsExecutor.Results[i].Err == nil
+}
+
 // ExtractSQL: Extract sql statements by ';':
 //   - ignore the ';' in ``, '', "";
 //   - ignore the escaped characters in ``, '', "";
@@ -164,11 +168,11 @@ func NewSQLSExecutor(filePath string) (*SQLSExecutor, error) {
 // NewSQLSExecutorB: create SQLSExecutor from bytes
 func NewSQLSExecutorB(sqlBytes []byte) (*SQLSExecutor, error) {
 	sqls := ExtractSQL(string(sqlBytes))
-	return NewSQLSExecutorS(sqls)
+	return NewSQLSExecutorS(sqls), nil
 }
 
 // NewSQLSExecutorS: create SQLSExecutor from []string
-func NewSQLSExecutorS(sqls []string) (*SQLSExecutor, error) {
+func NewSQLSExecutorS(sqls []string) *SQLSExecutor {
 	startTime := time.Now()
 	parseErrs := make([]*ParseError, 0)
 	asts := make([]ast.StmtNode, 0)
@@ -199,7 +203,7 @@ func NewSQLSExecutorS(sqls []string) (*SQLSExecutor, error) {
 		ParseErrs: parseErrs,
 		ASTs: asts,
 		ParseTime: parseTime,
-	}, nil
+	}
 }
 
 func (sqlsExecutor *SQLSExecutor) Exec(conn *connector.Connector) {

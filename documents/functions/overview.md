@@ -231,7 +231,7 @@ const (
 	BinToUUID       = "bin_to_uuid"
 	VitessHash      = "vitess_hash"
 	// get_lock() and release_lock() is parsed but do nothing.
-	// It is used for preventing error in Ruby's activerecord migrations.
+	// It is used for preventigitng error in Ruby's activerecord migrations.
 	GetLock     = "get_lock"
 	ReleaseLock = "release_lock"
 

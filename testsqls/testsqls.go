@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qaqcatz/impomysql/connector"
 	"io/ioutil"
+	"log"
 	"path"
 	"runtime"
 )
@@ -156,9 +157,46 @@ const (
 	SQLBetween = "SELECT * FROM COMPANY WHERE ID BETWEEN 1 AND 3"
 	SQLBetween2 = "SELECT * FROM COMPANY WHERE ID BETWEEN '1' AND '3'"
 	SQLBetween3 = "SELECT * FROM COMPANY WHERE NAME BETWEEN 0 AND 'A'"
+	SQLEX = "WITH MYWITH AS " +
+		"((SELECT (yearweek('2003-11-02') >> f4 - f4) AS f1, ('2006') AS f2, (~ f6) AS f3 " +
+		"FROM  (SELECT (BINARY abs(4)) AS f4, (quarter('2001-01-28')) AS f7, (f9 MOD f9 | f9) AS f6 " +
+		"FROM  (SELECT `col_double_undef_signed` AS f8, `col_bigint_key_unsigned` AS f9, `col_varchar(20)_undef_signed` AS f10 " +
+		"FROM  table_3_utf8_2 FORCE INDEX (`col_float_key_unsigned`)) AS t1  " +
+		"WHERE (((-4958736797163969007 - INTERVAL 1 QUARTER) >= (BINARY f10)) " +
+		"OR (NOT (CAST((\"in\") AS CHAR) NOT LIKE '%1%'))) IS FALSE " +
+		"HAVING  ((NOT ((from_days(1228031832738593057)) >= (- -9014801606300802676 + INTERVAL 1 DAY_HOUR))) " +
+		"OR (NOT (log2(0.6050498217840262) - INTERVAL 1 SECOND_MICROSECOND))) " +
+		"AND ((((sign(293170577176557332) MOD f6) NOT IN (atan(0.5116825416612745), f6, last_day('2013-02-23 12:51:07'))) IS TRUE) " +
+		"OR (NOT (f4)))  ORDER BY f9 ) AS t2  " +
+		"INNER JOIN  (SELECT `col_varchar(20)_key_signed` AS f11, `col_char(20)_undef_signed` AS f5, `col_float_key_unsigned` AS f12 " +
+		"FROM table_3_utf8_2 USE INDEX (`col_varchar(20)_key_signed`)) AS t3   ) " +
+		"UNION ALL (SELECT (NULL - sign(2)) AS f1, (6 + INTERVAL 1 DAY_HOUR) AS f2, (f14 - INTERVAL 1 HOUR_SECOND) AS f3 " +
+		"FROM  (SELECT `col_float_undef_unsigned` AS f13, `col_double_undef_signed` AS f14, `col_float_undef_signed` AS f15 FROM table_5_utf8_2 USE INDEX (`col_float_key_signed`,`col_decimal(40, 20)_key_signed`)) AS t4    ORDER BY f15 )) " +
+		"SELECT * FROM MYWITH"
+	SQLEX2 = "WITH `MYWITH` AS (SELECT (`f4`) AS `f1`,(COLLATION(`f4`)&`f5`) AS `f2`,(BIN(`f4`)) AS `f3` " +
+		"FROM (SELECT `col_char(20)_undef_signed` AS `f7`,`col_bigint_undef_signed` AS `f5`,`col_double_undef_signed` AS `f8` " +
+		"FROM `table_3_utf8_2` FORCE INDEX (`col_varchar(20)_key_signed`, `col_varchar(20)_key_signed`)) AS `t1` " +
+		"NATURAL JOIN (SELECT (ABS(-1529566578300132310)) AS `f4`,(`f11`) AS `f9`,(`f12`*CEILING(5636069043819042262)) AS `f6` " +
+		"FROM (SELECT `col_bigint_undef_unsigned` AS `f10`,`col_char(20)_undef_signed` AS `f11`,`col_double_key_signed` AS `f12` " +
+		"FROM `table_5_utf8_2`) AS `t2` WHERE ((((FORMAT_BYTES(`f12`)) NOT BETWEEN COLLATION(`f11`) " +
+		"AND DAYOFWEEK(_UTF8MB4'2003-07-05')) IS FALSE) " +
+		"OR (((RTRIM(`f12`)) NOT BETWEEN FORMAT_BYTES(_UTF8MB4'2004-03-12') " +
+		"AND `f10`) IS TRUE) " +
+		"OR ((DATE_ADD(`f11`, INTERVAL 1 DAY_HOUR))=(_UTF8MB4'r'))) IS TRUE " +
+		"HAVING (((~`f6`%~`f4`) IN (`f9`,`f9`,`f9`)) IS FALSE) IS TRUE) AS `t3`) " +
+		"SELECT * FROM `MYWITH`\n"
 )
 
 // sql file benchmark:
+
+// getPackagePath: get the package actual path, then you can read files under the path.
+func getPackagePath() (string, error) {
+	if _, file, _, ok := runtime.Caller(0); !ok {
+		return "", errors.New("PackagePath: runtime.Caller(0) error ")
+	} else {
+		return path.Join(file, "../"), nil
+	}
+}
 
 const (
 	SQLFileQuote = "quote"
@@ -173,16 +211,37 @@ const (
 // you can use it to get the actual location of the file
 func ReadSQLFile(sqlFileName string) ([]byte, error, string) {
 	sqlFileName += ".sql"
-	if _, file, _, ok := runtime.Caller(0); !ok {
-		return nil, errors.New("ReadSQLFile: runtime.Caller(0) error "), ""
-	} else {
-		sqlFilePath := path.Join(file, "../", sqlFileName)
-		data, err := ioutil.ReadFile(sqlFilePath)
-		if err != nil {
-			return nil, errors.New("ReadSQLFile: read " + sqlFilePath + " error: " + err.Error()), ""
-		}
-		return data, nil, sqlFilePath
+	packagePath, err := getPackagePath()
+	if err != nil {
+		return nil, errors.New("ReadSQLFile: getPackagePath() error "), ""
 	}
+	sqlFilePath := path.Join(packagePath, sqlFileName)
+	data, err := ioutil.ReadFile(sqlFilePath)
+	if err != nil {
+		return nil, errors.New("ReadSQLFile: read " + sqlFilePath + " error: " + err.Error()), ""
+	}
+	return data, nil, sqlFilePath
 }
 
+// test .zz, .yy
 
+const (
+	zzTest = "test.zz.lua"
+	yyTest = "test.yy"
+)
+
+func GetTestZZPath() string {
+	packagePath, err := getPackagePath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return path.Join(packagePath, zzTest)
+}
+
+func GetTestYYPath() string {
+	packagePath, err := getPackagePath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return path.Join(packagePath, yyTest)
+}

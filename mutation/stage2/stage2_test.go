@@ -2,90 +2,12 @@ package stage2
 
 import (
 	"fmt"
-	"github.com/pingcap/tidb/parser"
 	_ "github.com/pingcap/tidb/parser/test_driver"
-	"github.com/qaqcatz/impomysql/connector"
+	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/testsqls"
 	"reflect"
 	"testing"
 )
-
-func check(originResult *connector.Result, newResult *connector.Result, uflag int) bool {
-	empty1 := len(originResult.ColumnNames) == 0
-	empty2 := len(newResult.ColumnNames) == 0
-	if empty1 || empty2 {
-		// empty1&&!empty2, !empty1&&empty2, empty1&&empty2
-		if (empty1 && empty2) {
-			return true
-		}
-		// origin < new
-		if (empty1) {
-			// empty1&&!empty2
-			return uflag == 1;
-		} else {
-			// !empty1&&empty2
-			return uflag == 0;
-		}
-	}
-	if len(originResult.ColumnNames) != len(newResult.ColumnNames) {
-		return false
-	}
-	// Due to the difference between the restored sql and the original sql,
-	// we can not compare compare column names and types. (consider value select)
-	//for i, _ := range originResult.ColumnNames {
-	//	if originResult.ColumnNames[i] != newResult.ColumnNames[i] {
-	//		return false
-	//	}
-	//	if originResult.ColumnTypes[i] != newResult.ColumnTypes[i] {
-	//		return false
-	//	}
-	//}
-	res1 := make([]string, 0)
-	for _, r := range originResult.Rows {
-		t := ""
-		for _, e := range r {
-			t += e
-			t += ","
-		}
-		res1 = append(res1, t)
-	}
-	res2 := make([]string, 0)
-	for _, r := range newResult.Rows {
-		t := ""
-		for _, e := range r {
-			t += e
-			t += ","
-		}
-		res2 = append(res2, t)
-	}
-	if uflag == 0 {
-		// negative
-		t := res1
-		res1 = res2
-		res2 = t
-	}
-	// res1 < res2
-	mp := make(map[string]int)
-	for i := 0; i < len(res2); i++ {
-		if num, ok := mp[res2[i]]; ok {
-			mp[res2[i]] = num + 1
-		} else {
-			mp[res2[i]] = 1
-		}
-	}
-	for i := 0; i < len(res1); i++ {
-		if num, ok := mp[res1[i]]; ok {
-			if num <= 1 {
-				delete(mp, res1[i])
-			} else {
-				mp[res1[i]] = num - 1
-			}
-		} else {
-			return false
-		}
-	}
-	return true
-}
 
 func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 	fmt.Println("==================================================")
@@ -96,17 +18,11 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 		t.Fatal(err.Error())
 	}
 
-	p := parser.New()
-	stmtNodes, _, err := p.Parse(sql, "", "")
+	v, err := CalCandidates(sql)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if stmtNodes == nil || len(stmtNodes) == 0 {
-		t.Fatal("stmtNodes == nil || len(stmtNodes) == 0 ")
-	}
-	rootNode := &stmtNodes[0]
-
-	v := CalCandidates(*rootNode)
+	root := v.Root
 
 	t.Log("[origin]", sql)
 
@@ -123,19 +39,19 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 	t.Log("[origin result]", originResult.ToString())
 
 	i := 0
-	for k, v := range v.Candidates {
+	for mutationName, lst := range v.Candidates {
 		t.Log(i, "====================")
 		i += 1
-		t.Log("[MutationName]", k)
+		t.Log("[MutationName]", mutationName)
 		j := 0
-		for _, can := range v {
+		for _, can := range lst {
 			t.Log(i, ".", j, "==========")
 			j += 1
 			t.Log("[type]", reflect.TypeOf(can.Node))
 			t.Log("[candidate]", can.Node)
 			t.Log("[flag]", can.Flag)
 
-			newSql, err := ImpoMutate(*rootNode, can, seed)
+			newSql, err := ImpoMutate(root, can, seed)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -148,7 +64,7 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 
 			t.Log("[new result]", result.ToString())
 
-			if !check(originResult, result, (can.U ^ can.Flag) ^ 1) {
+			if !oracle.Check(originResult, result, ((can.U ^ can.Flag) ^ 1) == 1) {
 				t.Fatal("!IMPO")
 			}
 		}
