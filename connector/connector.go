@@ -91,6 +91,10 @@ func (result *Result) FlatRows() []string {
 	return flt
 }
 
+func (result *Result) IsEmpty() bool {
+	return len(result.ColumnNames) == 0
+}
+
 // ExecSQL: execute sql, return *Result.
 func (conn *Connector) ExecSQL(sql string) *Result {
 	startTime := time.Now()
@@ -169,4 +173,34 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 
 	result.Time = time.Since(startTime)
 	return result
+}
+
+// ExecSQLS: There is a bug in golang mysql driver:
+//
+// If you execute the following sql in mysql-client, you will see:
+//   mysql> select 9223372036854775807 + 1 > 1;
+//   ERROR 1690 (22003): BIGINT value is out of range in '(9223372036854775807 + 1)'
+// However, when execute this sql in gorm, no error, just an empty result.
+//
+// We will double check the result:
+//
+// when sql1 returns an empty result and no error occurred, change it to sql2=SELECT EXISTS (sql1),
+// if sql2 returns 0, then sql1 is really empty, otherwise an error occurred.
+//
+// Therefore, it is recommended to use ExecSQLS to query.
+// Note that do not use this function for other ddl/dml, only use it to query without side effects!
+func (conn *Connector) ExecSQLS(sql string) *Result {
+	res1 := conn.ExecSQL(sql)
+	if res1.Err == nil && res1.IsEmpty() {
+		sql2 := "SELECT EXISTS (" + sql + " )"
+		res2 := conn.ExecSQL(sql2)
+		if res2.Err == nil && len(res2.Rows) == 1 && len(res2.Rows[0]) == 1 && res2.Rows[0][0] == "0" {
+			return res1
+		} else {
+			res1.Err = errors.New("ExecSQLS: unknown error, maybe BIGINT value is out of range. ")
+			return res1
+		}
+	} else {
+		return res1
+	}
 }

@@ -86,8 +86,8 @@ const (
 	RdMOnU = "RdMOnU"
 	// *ast.Join: ON xxx -> ON FALSE | ON (xxx) AND 0
 	RdMOnL = "RdMOnL"
-	// *ast.SetOprSelectList: remove Selects[1:]
-	FixMUnionL = "RdUnionL"
+	// *ast.SetOprSelectList: remove Selects[1:] for UNION ALL
+	FixMUnionL = "FixUnionL"
 )
 
 // Candidate: (mutation name, U, candidate node, Flag).
@@ -793,7 +793,7 @@ func ImpoMutateAndExec(rootNode ast.Node, candidate *Candidate, seed int64,
 	if err != nil {
 		return "", nil, errors.New("ImpoMutateAndExec: " + err.Error())
 	}
-	result := conn.ExecSQL(sql)
+	result := conn.ExecSQLS(sql)
 	return sql, result, nil
 }
 
@@ -881,7 +881,7 @@ func MutateAllAndExec(sql string, seed int64, conn *connector.Connector) *Mutate
 		if mutateResult.MutErrs[i] != nil {
 			mutateResult.ExecResults = append(mutateResult.ExecResults, nil)
 		} else {
-			result := conn.ExecSQL(sqlm)
+			result := conn.ExecSQLS(sqlm)
 			mutateResult.ExecResults = append(mutateResult.ExecResults, result)
 		}
 	}

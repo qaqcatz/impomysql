@@ -7,14 +7,18 @@ import (
 	"reflect"
 )
 
-// addFixMUnionL: FixMUnionL, *ast.SetOprSelectList: remove Selects[1:]
+// addFixMUnionL: FixMUnionL, *ast.SetOprSelectList: remove Selects[1:] for UNION ALL
 func (v *MutateVisitor) addFixMUnionL(in *ast.SetOprSelectList, flag int) {
-	if in.Selects != nil && len(in.Selects) > 1 {
-		v.addCandidate(FixMUnionL, 0, in, flag)
+	if in.Selects != nil && len(in.Selects) == 2 {
+		if sel, ok := in.Selects[1].(*ast.SelectStmt); ok {
+			if *sel.AfterSetOperator == ast.UnionAll {
+				v.addCandidate(FixMUnionL, 0, in, flag)
+			}
+		}
 	}
 }
 
-// doFixMUnionL: FixMUnionL, *ast.SetOprSelectList: remove Selects[1:]
+// doFixMUnionL: FixMUnionL, *ast.SetOprSelectList: remove Selects[1:] for UNION ALL
 func doFixMUnionL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 	switch in.(type) {
 	case *ast.SetOprSelectList:

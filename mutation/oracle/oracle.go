@@ -5,12 +5,18 @@ import "github.com/qaqcatz/impomysql/connector"
 
 // Check: check impo
 func Check(originResult *connector.Result, newResult *connector.Result, isUpper bool) bool {
-	if newResult.Err != nil {
-		return false;
+	isErr1 := (originResult.Err != nil)
+	isErr2 := (newResult.Err != nil)
+	if isErr1 || isErr2 {
+		// isErr1&&!isErr2, !isErr1&&isErr2, isErr1&&isErr2
+		if (isErr1 && isErr2) {
+			return true
+		}
+		return false
 	}
 
-	empty1 := len(originResult.ColumnNames) == 0
-	empty2 := len(newResult.ColumnNames) == 0
+	empty1 := originResult.IsEmpty()
+	empty2 := newResult.IsEmpty()
 	if empty1 || empty2 {
 		// empty1&&!empty2, !empty1&&empty2, empty1&&empty2
 		if (empty1 && empty2) {

@@ -75,6 +75,22 @@ func SQLExec(sql string) error {
 	return nil
 }
 
+// SQLExecS: see connector.Connector .SQLExecS
+func SQLExecS(sql string) error {
+	conn, err := GetConnector()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Exec SQL:", sql)
+	result := conn.ExecSQLS(sql)
+	if result.Err != nil {
+		return result.Err
+	}
+	fmt.Println("Exec result:", result.ToString())
+	return nil
+}
+
+
 // table benchmark:
 
 // InitTableCOMPANY:

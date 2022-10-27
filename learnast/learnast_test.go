@@ -13,7 +13,7 @@ func testLearnASTCommon(t *testing.T, sql string) {
 		t.Fatal(err.Error())
 	}
 
-	if err := testsqls.SQLExec(sql); err != nil {
+	if err := testsqls.SQLExecS(sql); err != nil {
 		t.Fatal(err.Error())
 	}
 	if sql, err := learnAST(sql); err != nil {
@@ -126,7 +126,17 @@ func TestLearnASTRegExp(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLRegExp);
 }
 
-func TestLearnASTEX(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLEX2);
+func TestLearnASTBug(t *testing.T) {
+	//testLearnASTCommon(t, "SELECT 1")
+	testLearnASTCommon(t, "WITH `MYWITH` AS (SELECT (DATE_ADD(`f6`, INTERVAL 1 MICROSECOND)) AS `f1`,(COERCIBILITY(NULL)%`f4`) AS `f2`,(UCASE(`f4`) DIV `f6`>>3) AS `f3` FROM (SELECT `col_bigint_undef_signed` AS `f4`,`col_bigint_key_unsigned` AS `f5`,`col_double_key_unsigned` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_float_key_unsigned`)) AS `t1`) SELECT * FROM `MYWITH`")
+
+	//testLearnASTCommon(t, testsqls.SQLEX2);
+	//testLearnASTCommon(t, "select exists ("+testsqls.SQLEX2+")");
+
 	//testLearnASTCommon(t, "select * from COMPANY where 9223372036854775807 + 1 > 1;");
+
+	//testLearnASTCommon(t, "select 9223372036854775807 + 1 > 1");
+	//testLearnASTCommon(t, "select exists (select 9223372036854775807 + 1 > 1)");
+
+	//testLearnASTCommon(t, "select exists (select * from COMPANY WHERE ID = 0)");
 }

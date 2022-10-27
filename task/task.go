@@ -93,7 +93,7 @@ func Run(config *Config) *Result {
 			continue
 		}
 		for j, newResult := range result.Stage2Res[i].ExecResults {
-			if newResult == nil {
+			if newResult.Err != nil {
 				continue
 			}
 			mutName := result.Stage2Res[i].MutNames[j]
