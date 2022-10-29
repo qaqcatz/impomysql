@@ -80,3 +80,20 @@ func Check(originResult *connector.Result, newResult *connector.Result, isUpper 
 
 	return true
 }
+
+// DoubleCheck: see *(connector.Connector).ExecSQLX
+func DoubleCheck(conn *connector.Connector, originSql string, newSql string, originErr bool, newErr bool) bool {
+	if !originErr {
+		_, _, err := conn.ExecSQLX(originSql, 60000)
+		if err != nil {
+			return false
+		}
+	}
+	if !newErr {
+		_, _, err := conn.ExecSQLX(newSql, 60000)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+}

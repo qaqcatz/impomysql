@@ -1,22 +1,43 @@
 package connector
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"os/exec"
 	"strconv"
 	"time"
 )
 
 // Connector: connect to MySQL, execute raw sql statements, return raw execution result or error.
 type Connector struct {
+	DSN string
+	Host string
+	Port int
+	Username string
+	Password string
+	DbName string
+	MysqlPath string
 	db *gorm.DB
 }
 
+func (conn *Connector) ToString() string {
+	s := "connector:\n"
+	s += "==================================================\n"
+	s += "[dsn] " + conn.DSN + "\n"
+	s += "=================================================="
+	return s
+}
+
 // NewConnector: create Connector.
-func NewConnector(host string, port int, username string, password string, dbname string) (*Connector, error) {
+func NewConnector(host string, port int, username string, password string, dbname string, mysqlPath string) (*Connector, error) {
+	if mysqlPath == "" {
+		mysqlPath = "/usr/bin/mysql"
+	}
+
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
 		username, password, host, port, dbname)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
@@ -24,6 +45,13 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		return nil, errors.New("NewConnector: create Connector error: " + err.Error())
 	}
 	return &Connector{
+		DSN: dsn,
+		Host: host,
+		Port: port,
+		Username: username,
+		Password: password,
+		DbName: dbname,
+		MysqlPath: mysqlPath,
 		db: db,
 	}, nil
 }
@@ -189,6 +217,8 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 //
 // Therefore, it is recommended to use ExecSQLS to query.
 // Note that do not use this function for other ddl/dml, only use it to query without side effects!
+//
+// todo check ExecSQL, change it to ExecSQLS
 func (conn *Connector) ExecSQLS(sql string) *Result {
 	res1 := conn.ExecSQL(sql)
 	if res1.Err == nil && res1.IsEmpty() {
@@ -203,4 +233,55 @@ func (conn *Connector) ExecSQLS(sql string) *Result {
 	} else {
 		return res1
 	}
+}
+
+// ExecSQLX: see ExecSQLS first.
+// Unfortunately, sometimes golang mysql driver will return a non-empty result, while mysql-client will return an error.
+// Therefore we will eventually use mysql-client to execute the sql and check for errors.
+// Note that this function is very slow, only use it to verify bugs.
+//
+// Actually, we execute sql | Connector.MysqlPath -h Connector.Host -P Connector.Port
+// -u Connector.Username --password=Connector.Password Connector.DbName by pipeline, and
+// return output stream, error stream, error
+func (conn *Connector) ExecSQLX(sql string, timeOut int) (string, string, error) {
+	sqlBuf := bytes.NewBufferString(sql)
+
+	mysqlClient := exec.Command("/bin/bash", "-c",
+		conn.MysqlPath +
+		" -h " + conn.Host +
+		" -P " + strconv.Itoa(conn.Port) +
+		" -u " + conn.Username +
+		" -p" + conn.Password +
+		" " + conn.DbName)
+
+	readPipe, err := mysqlClient.StdinPipe()
+	if err != nil {
+		return "", "", errors.New("ExecSQLX: mysqlClient.StdinPipe() error: " + err.Error())
+	}
+
+	_, err = sqlBuf.WriteTo(readPipe)
+	if err != nil {
+		return "", "", errors.New("ExecSQLX: sqlBuf.WriteTo(readPipe) error: " + err.Error())
+	}
+
+	var outBuf bytes.Buffer
+	var errBuf bytes.Buffer
+	mysqlClient.Stdout = &outBuf
+	mysqlClient.Stderr = &errBuf
+
+	err = mysqlClient.Start()
+	if err != nil {
+		return "", "", errors.New("ExecSQLX: mysqlClient.Start() error: " + err.Error())
+	}
+
+	err = readPipe.Close()
+	if err != nil {
+		return "", "", errors.New("ExecSQLX: readPipe.Close() error: " + err.Error())
+	}
+
+	err = mysqlClient.Wait()
+	if err != nil {
+		return outBuf.String(), errBuf.String(), errors.New("ExecSQLX: mysqlClient.Wait() error: " + err.Error())
+	}
+	return outBuf.String(), errBuf.String(), nil
 }

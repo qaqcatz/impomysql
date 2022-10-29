@@ -20,6 +20,17 @@ type Config struct {
 	Seed int64
 }
 
+func (config *Config) ToString() string {
+	s := "[randgen config]\n"
+	s += "==================================================\n"
+	s += "[ZZFilePath] " + config.ZZFilePath + "\n"
+	s += "[YYFilePath] " + config.YYFilePath + "\n"
+	s += "[QueriesNum] " + strconv.Itoa(config.QueriesNum) + "\n"
+	s += "[Seed] " + strconv.FormatInt(config.Seed, 10) + "\n"
+	s += "=================================================="
+	return s
+}
+
 // Results: see https://github.com/qaqcatz/gorandgensh
 type Results struct {
 	ZZFilePath string `json:"zzFilePath"`
