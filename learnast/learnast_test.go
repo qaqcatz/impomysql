@@ -126,8 +126,8 @@ func TestLearnASTRegExp(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLRegExp);
 }
 
-func TestLearnASTBug(t *testing.T) {
-	//testLearnASTCommon(t, "select * from COMPANY where 9223372036854775807 + 1 > 1;");
-	//testLearnASTCommon(t, "select 9223372036854775807 + 1");
-	//testLearnASTCommon(t, "select exists (select * from COMPANY WHERE ID = 0)");
-}
+//func TestLearnASTBug(t *testing.T) {
+//	testLearnASTCommon(t, "select * from COMPANY where 9223372036854775807 + 1 > 1;");
+//	testLearnASTCommon(t, "select 9223372036854775807 + 1");
+//	testLearnASTCommon(t, "select exists (select * from COMPANY WHERE ID = 0)");
+//}
