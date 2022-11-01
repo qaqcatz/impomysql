@@ -9,6 +9,7 @@ import (
 )
 
 // addRdMInL: RdMInL, *ast.PatternInExpr: in(x,x,x,...) -> in(x,x,x)
+// may false positive, skim
 func (v *MutateVisitor) addRdMInL(in *ast.PatternInExpr, flag int) {
 	if in.Sel == nil && in.List != nil && len(in.List) >= 2 {
 		v.addCandidate(RdMInL, 0, in, flag)
@@ -16,6 +17,7 @@ func (v *MutateVisitor) addRdMInL(in *ast.PatternInExpr, flag int) {
 }
 
 // doRdMInL: RdMInL, *ast.PatternInExpr: in(x,x,x,...) -> in(x,x,x)
+// may false positive, skim
 func doRdMInL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 	rander := rand.New(rand.NewSource(seed))
 	switch in.(type) {

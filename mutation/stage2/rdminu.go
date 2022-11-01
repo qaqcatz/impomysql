@@ -3,12 +3,14 @@ package stage2
 import (
 	"errors"
 	"github.com/pingcap/tidb/parser/ast"
+	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"math/rand"
 	"reflect"
 )
 
 // addRdMInU: RdMInU, *ast.PatternInExpr: in(x,x,x) -> in(x,x,x,...)
+// type conversion, only support in(x,x,x) -> in(x,x,x,null)
 func (v *MutateVisitor) addRdMInU(in *ast.PatternInExpr, flag int) {
 	if in.Sel == nil && in.List != nil {
 		v.addCandidate(RdMInU, 1, in, flag)
@@ -16,6 +18,7 @@ func (v *MutateVisitor) addRdMInU(in *ast.PatternInExpr, flag int) {
 }
 
 // doRdMInU: RdMInU, *ast.PatternInExpr: in(x,x,x) -> in(x,x,x,...)
+// type conversion, only support in(x,x,x) -> in(x,x,x,null)
 func doRdMInU(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 	rander := rand.New(rand.NewSource(seed))
 	switch in.(type) {
@@ -31,10 +34,12 @@ func doRdMInU(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		for _, expr := range oldList {
 			newList = append(newList, expr)
 		}
-		// add 1 ~ 3 random expr
-		rdValueExprs := GenRandomValueExpr(rander.Intn(3)+1, seed)
-		for _, rdValueExpr := range rdValueExprs {
-			newList = append(newList, rdValueExpr)
+		// add 1 ~ 3 null expr
+		nullExprNum := rander.Intn(3)+1
+		for i := 0; i < nullExprNum; i++ {
+			newList = append(newList, &test_driver.ValueExpr{
+				Datum: test_driver.NewDatum(nil),
+			})
 		}
 		pin.List = newList
 		sql, err := restore(rootNode)

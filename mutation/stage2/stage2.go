@@ -30,7 +30,7 @@ const (
 	//
 	// a {<|<=} b -> (a) + 0 {<|<=} (b) + 1
 	//
-	// may false positive, skim
+	// type conversion, may false positive, skim
 	FixMCmpU = "FixMCmpU"
 	// *ast.BinaryOperationExpr:
 	//
@@ -38,7 +38,7 @@ const (
 	//
 	// a {<|<=} b -> (a) + 1 {<|<=} (b) + 0
 	//
-	// may false positive, skim
+	// type conversion, may false positive, skim
 	FixMCmpL = "FixMCmpL"
 	// *ast.CompareSubqueryExpr: ALL true -> false
 	FixMCmpSubU = "FixMCmpSubU"
@@ -53,18 +53,20 @@ const (
 	//   ->
 	//   (expr) >= l and (expr) <= r
 	//   -> FixMCmpU, 1 and and (expr) <= r, (expr) >= l and 1 )
-	// may false positive, skim
+	// type conversion, may false positive, skim
 	RdMBetweenU = "RdMBetweenU"
 	// *ast.BetweenExpr:
 	//   expr between l and r
 	//   ->
 	//   (expr) >= l and (expr) <= r
 	//   -> FixMCmpOpL / FixMCmpL )
-	// may false positive, skim
+	// type conversion, may false positive, skim
 	RdMBetweenL = "RdMBetweenL"
 	// *ast.PatternInExpr: in(x,x,x) -> in(x,x,x,...)
+	// type conversion, only support in(x,x,x) -> in(x,x,x,null)
 	RdMInU = "RdMInU"
 	// *ast.PatternInExpr: in(x,x,x,...) -> in(x,x,x)
+	// type conversion, may false positive, skim
 	RdMInL = "RdMInL"
 	// *ast.PatternLikeExpr: normal char -> '_'|'%',  '_' -> '%'
 	RdMLikeU = "RdMLikeU"
@@ -686,7 +688,7 @@ func (v *MutateVisitor) miningPatternInExpr(in *ast.PatternInExpr, flag int) {
 	// RdMInU
 	v.addRdMInU(in, flag)
 	// RdMInL
-	v.addRdMInL(in, flag)
+	//v.addRdMInL(in, flag)
 }
 
 func (v *MutateVisitor) miningPatternLikeExpr(in *ast.PatternLikeExpr, flag int) {
@@ -755,8 +757,8 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) (string, er
 	//	sql, err = doRdMBetweenL(rootNode, candidate.Node, seed)
 	case RdMInU:
 		sql, err = doRdMInU(rootNode, candidate.Node, seed)
-	case RdMInL:
-		sql, err = doRdMInL(rootNode, candidate.Node, seed)
+	//case RdMInL:
+	//	sql, err = doRdMInL(rootNode, candidate.Node, seed)
 	case RdMLikeU:
 		sql, err = doRdMLikeU(rootNode, candidate.Node, seed)
 	case RdMLikeL:
