@@ -14,6 +14,7 @@ const gorandgensh = "gorandgensh"
 
 // Config: see https://github.com/qaqcatz/gorandgensh
 type Config struct {
+	GoRandGenPath string
 	ZZFilePath string
 	YYFilePath string
 	QueriesNum int
@@ -23,6 +24,7 @@ type Config struct {
 func (config *Config) ToString() string {
 	s := "[randgen config]\n"
 	s += "==================================================\n"
+	s += "[GoRandGenPath] " + config.GoRandGenPath + "\n"
 	s += "[ZZFilePath] " + config.ZZFilePath + "\n"
 	s += "[YYFilePath] " + config.YYFilePath + "\n"
 	s += "[QueriesNum] " + strconv.Itoa(config.QueriesNum) + "\n"
@@ -47,17 +49,22 @@ func RandGen(config *Config) *Results {
 		Err: nil,
 	}
 
+	goRandGenPath := config.GoRandGenPath
+	if goRandGenPath == "" {
+		// default path
+		temp, err := getPackagePath()
+		if err != nil {
+			sqls.Err = errors.New("RandGen: getPackagePath() error: " + err.Error())
+			return sqls
+		}
+		goRandGenPath = path.Join(temp, gorandgensh)
+	}
 	zzFilePath := config.ZZFilePath
 	yyFilePath := config.YYFilePath
 	queriesNum := config.QueriesNum
 	seed := config.Seed
-	packagePath, err := getPackagePath()
-	if err != nil {
-		sqls.Err = errors.New("RandGen: getPackagePath() error ")
-		return sqls
-	}
 	// see https://github.com/qaqcatz/nanoshlib
-	outStream, errStream, err := nanoshlib.Exec(packagePath+"/"+gorandgensh+" "+
+	outStream, errStream, err := nanoshlib.Exec(goRandGenPath+" "+
 		zzFilePath+" "+yyFilePath+" "+strconv.Itoa(queriesNum)+" "+strconv.FormatInt(seed, 10), 0)
 	if err != nil {
 		sqls.Err = errors.New("RandGen: gen test error: "+err.Error()+": "+string(errStream))

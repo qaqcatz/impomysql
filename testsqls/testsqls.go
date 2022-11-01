@@ -29,11 +29,11 @@ func InitDBTEST() error {
 	}
 	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + dbname)
 	if result.Err != nil {
-		return err
+		return result.Err
 	}
 	result = conn.ExecSQL("CREATE DATABASE " + dbname)
 	if result.Err != nil {
-		return err
+		return result.Err
 	}
 	return nil
 }
@@ -45,9 +45,9 @@ func EnsureDBTEST() error {
 	if err != nil {
 		return err
 	}
-	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS TEST " + dbname)
+	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + dbname)
 	if result.Err != nil {
-		return err
+		return result.Err
 	}
 	return nil
 }
@@ -232,4 +232,89 @@ func GetTestYYPath() string {
 		log.Fatal(err)
 	}
 	return path.Join(packagePath, yyTest)
+}
+
+// other dbms
+
+const (
+	MariaDB = "mariadb"
+	TiDB = "tidb"
+	OceanBase = "oceanbase"
+
+	MariaDBPort = 23306 // docker run --name mariadbtest -e MYSQL_ROOT_PASSWORD=123456 -p 23306:3306 -d docker.io/library/mariadb
+	// docker run --name tidb-server -d -p 4000:4000 pingcap/tidb:latest
+	// SET PASSWORD = '123456'
+	TiDBPort = 4000
+	// docker run -p 2881:2881 --name obstandalone -d oceanbase/oceanbase-ce
+	// SET PASSWORD = PASSWORD('123456');
+	OceanBasePort = 2881
+)
+
+func InitOtherDBTEST(DBMS string) error {
+	myPort := 0
+	switch DBMS {
+	case MariaDB:
+		myPort = MariaDBPort
+	case TiDB:
+		myPort = TiDBPort
+	case OceanBase:
+		myPort = OceanBasePort
+	default:
+		myPort = port
+	}
+	conn, err := connector.NewConnector(host, myPort, username, password, "", "")
+	if err != nil {
+		return err
+	}
+	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + dbname)
+	if result.Err != nil {
+		return result.Err
+	}
+	result = conn.ExecSQL("CREATE DATABASE " + dbname)
+	if result.Err != nil {
+		return result.Err
+	}
+	return nil
+}
+
+func EnsureOtherDBTEST(DBMS string) error {
+	myPort := 0
+	switch DBMS {
+	case MariaDB:
+		myPort = MariaDBPort
+	case TiDB:
+		myPort = TiDBPort
+	case OceanBase:
+		myPort = OceanBasePort
+	default:
+		myPort = port
+	}
+	conn, err := connector.NewConnector(host, myPort, username, password, "", "")
+	if err != nil {
+		return err
+	}
+	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + dbname)
+	if result.Err != nil {
+		return result.Err
+	}
+	return nil
+}
+
+func GetOtherDBConnector(DBMS string) (*connector.Connector, error) {
+	myPort := 0
+	switch DBMS {
+	case MariaDB:
+		myPort = MariaDBPort
+	case TiDB:
+		myPort = TiDBPort
+	case OceanBase:
+		myPort = OceanBasePort
+	default:
+		myPort = port
+	}
+	conn, err := connector.NewConnector(host, myPort, username, password, dbname, "")
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
