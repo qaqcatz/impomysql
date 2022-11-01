@@ -31,7 +31,7 @@
     --     * subqueries with value SELECT.
     --     * type conversion, see the document:
     --       https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html
-    --       Note that there are also type conversion in BETWEEN, IN, some binary operators.
+    --       Note that there are also type conversion in BETWEEN, IN, ANY/ALL, some binary operators.
     --
     --     * SELECT INTO(INSERT INTO SELECT)
     --     * variable(SET)
