@@ -119,6 +119,7 @@ func (result *Result) FlatRows() []string {
 	return flt
 }
 
+// IsEmpty: if the result is empty
 func (result *Result) IsEmpty() bool {
 	return len(result.ColumnNames) == 0
 }
@@ -243,7 +244,7 @@ func (conn *Connector) ExecSQLS(sql string) *Result {
 // Actually, we execute sql | Connector.MysqlPath -h Connector.Host -P Connector.Port
 // -u Connector.Username --password=Connector.Password Connector.DbName by pipeline, and
 // return output stream, error stream, error
-func (conn *Connector) ExecSQLX(sql string, timeOut int) (string, string, error) {
+func (conn *Connector) ExecSQLX(sql string) (string, string, error) {
 	sqlBuf := bytes.NewBufferString(sql)
 
 	mysqlClient := exec.Command("/bin/bash", "-c",

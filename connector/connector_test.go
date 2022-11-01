@@ -83,7 +83,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 	} else {
 		t.Log(result.ToString())
 	}
-	outStr, errStr, err := conn.ExecSQLX(testSql, -1)
+	outStr, errStr, err := conn.ExecSQLX(testSql)
 	t.Log("[out str]", outStr)
 	t.Log("[err str]", errStr)
 	if err != nil {
