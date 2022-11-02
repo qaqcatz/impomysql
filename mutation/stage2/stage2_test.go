@@ -11,60 +11,67 @@ import (
 
 func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 	fmt.Println("==================================================")
+	// prepare database TEST
 	if err := testsqls.EnsureDBTEST(); err != nil {
 		t.Fatal(err.Error())
 	}
+	// prepare table COMPANY
 	if err := testsqls.InitTableCOMPANY(); err != nil {
 		t.Fatal(err.Error())
 	}
+	// prepare connector
+	conn, err := testsqls.GetConnector()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
+	// execute original sql
+	t.Log("[origin]", sql)
+	originResult := conn.ExecSQL(sql)
+	if originResult.Err != nil {
+		t.Fatal(originResult.Err.Error())
+	}
+	t.Log("[origin result]", originResult.ToString())
+
+	// calculate candidates
 	v, err := CalCandidates(sql)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	root := v.Root
 
-	t.Log("[origin]", sql)
-
-	conn, err := testsqls.GetConnector()
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	originResult := conn.ExecSQL(sql)
-	if originResult.Err != nil {
-		t.Fatal(originResult.Err.Error())
-	}
-
-	t.Log("[origin result]", originResult.ToString())
-
 	i := 0
-	for mutationName, lst := range v.Candidates {
+	for mutationName, mutationPoints := range v.Candidates {
 		t.Log(i, "====================")
 		i += 1
+
 		t.Log("[MutationName]", mutationName)
+		// mutate all points
 		j := 0
-		for _, can := range lst {
+		for _, point := range mutationPoints {
 			t.Log(i, ".", j, "==========")
 			j += 1
-			t.Log("[type]", reflect.TypeOf(can.Node))
-			t.Log("[candidate]", can.Node)
-			t.Log("[flag]", can.Flag)
 
-			newSql, err := ImpoMutate(root, can, seed)
+			t.Log("[type]", reflect.TypeOf(point.Node))
+			t.Log("[candidate]", point.Node)
+			t.Log("[flag]", point.Flag)
+
+			// do!
+			newSql, err := ImpoMutate(root, point, seed)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			t.Log("[newSql]", string(newSql))
 
+			// execute new sql
+			t.Log("[newSql]", string(newSql))
 			result := conn.ExecSQL(string(newSql))
 			if result.Err != nil {
 				t.Fatal(result.Err.Error())
 			}
-
 			t.Log("[new result]", result.ToString())
 
-			if !oracle.Check(originResult, result, ((can.U ^ can.Flag) ^ 1) == 1) {
+			// check impo result
+			if !oracle.Check(originResult, result, ((point.U ^ point.Flag) ^ 1) == 1) {
 				t.Fatal("!IMPO")
 			}
 		}

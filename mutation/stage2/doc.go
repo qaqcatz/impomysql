@@ -5,7 +5,7 @@
 // 2. you can choose any mutation point to mutate, each mutation has no side effects.
 //
 // How to use: If you want to choose mutation points yourself, see CalCandidates and ImpoMutate / ImpoMutateAndExec.
-// If you want to try all of the mutation points, see MutateAll.
+// If you want to try all of the mutation points, see MutateAll / MutateAllAndExec.
 //
 // all mutations:
 //   FixMDistinctU
