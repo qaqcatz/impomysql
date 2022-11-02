@@ -10,23 +10,6 @@ import (
 	"github.com/qaqcatz/impomysql/connector"
 )
 
-// InitVisitor: Remove aggregate function(and group by),
-// window function, LEFT|RIGHT JOIN, Limit.
-type InitVisitor struct {
-}
-
-func (v *InitVisitor) Enter(in ast.Node) (ast.Node, bool) {
-	rmAgg(in)
-	rmWindow(in)
-	rmLRJoin(in)
-	rmLimit(in)
-	return in, false
-}
-
-func (v *InitVisitor) Leave(in ast.Node) (ast.Node, bool) {
-	return in, true
-}
-
 type InitResult struct {
 	InitSql string
 	Err error

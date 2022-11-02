@@ -31,8 +31,6 @@ func TestConnector_ExecSQL(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	t.Log(conn.ToString())
-
 	result = conn.ExecSQL("DROP TABLE IF EXISTS T")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())

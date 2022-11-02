@@ -14,28 +14,22 @@ import (
 
 // Connector: connect to MySQL, execute raw sql statements, return raw execution result or error.
 type Connector struct {
-	DSN string
-	Host string
-	Port int
-	Username string
-	Password string
-	DbName string
-	MysqlPath string
-	db *gorm.DB
-}
-
-func (conn *Connector) ToString() string {
-	s := "connector:\n"
-	s += "==================================================\n"
-	s += "[dsn] " + conn.DSN + "\n"
-	s += "=================================================="
-	return s
+	DSN             string
+	Host            string
+	Port            int
+	Username        string
+	Password        string
+	DbName          string
+	MysqlClientPath string
+	db              *gorm.DB
 }
 
 // NewConnector: create Connector.
-func NewConnector(host string, port int, username string, password string, dbname string, mysqlPath string) (*Connector, error) {
-	if mysqlPath == "" {
-		mysqlPath = "/usr/bin/mysql"
+//
+// Default mysqlClientPath: /usr/bin/mysql
+func NewConnector(host string, port int, username string, password string, dbname string, mysqlClientPath string) (*Connector, error) {
+	if mysqlClientPath == "" {
+		mysqlClientPath = "/usr/bin/mysql"
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
@@ -45,14 +39,14 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		return nil, errors.New("NewConnector: create Connector error: " + err.Error())
 	}
 	return &Connector{
-		DSN: dsn,
-		Host: host,
-		Port: port,
-		Username: username,
-		Password: password,
-		DbName: dbname,
-		MysqlPath: mysqlPath,
-		db: db,
+		DSN:             dsn,
+		Host:            host,
+		Port:            port,
+		Username:        username,
+		Password:        password,
+		DbName:          dbname,
+		MysqlClientPath: mysqlClientPath,
+		db:              db,
 	}, nil
 }
 
@@ -241,14 +235,14 @@ func (conn *Connector) ExecSQLS(sql string) *Result {
 // Therefore we will eventually use mysql-client to execute the sql and check for errors.
 // Note that this function is very slow, only use it to verify bugs.
 //
-// Actually, we execute sql | Connector.MysqlPath -h Connector.Host -P Connector.Port
+// Actually, we execute sql | Connector.MysqlClientPath -h Connector.Host -P Connector.Port
 // -u Connector.Username --password=Connector.Password Connector.DbName by pipeline, and
 // return output stream, error stream, error
 func (conn *Connector) ExecSQLX(sql string) (string, string, error) {
 	sqlBuf := bytes.NewBufferString(sql)
 
 	mysqlClient := exec.Command("/bin/bash", "-c",
-		conn.MysqlPath +
+		conn.MysqlClientPath+
 		" -h " + conn.Host +
 		" -P " + strconv.Itoa(conn.Port) +
 		" -u " + conn.Username +
