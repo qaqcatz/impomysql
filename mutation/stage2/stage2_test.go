@@ -11,23 +11,19 @@ import (
 
 func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 	fmt.Println("==================================================")
-	// prepare database TEST
-	if err := testsqls.EnsureDBTEST(); err != nil {
-		t.Fatal(err.Error())
-	}
 	// prepare table COMPANY
-	if err := testsqls.InitTableCOMPANY(); err != nil {
+	if err := testsqls.InitTableCOMPANY(""); err != nil {
 		t.Fatal(err.Error())
 	}
 	// prepare connector
-	conn, err := testsqls.GetConnector()
+	conn, err := testsqls.GetConnector("")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	// execute original sql
 	t.Log("[origin]", sql)
-	originResult := conn.ExecSQL(sql)
+	originResult := conn.ExecSQLS(sql)
 	if originResult.Err != nil {
 		t.Fatal(originResult.Err.Error())
 	}
@@ -64,7 +60,7 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 
 			// execute new sql
 			t.Log("[newSql]", string(newSql))
-			result := conn.ExecSQL(string(newSql))
+			result := conn.ExecSQLS(string(newSql))
 			if result.Err != nil {
 				t.Fatal(result.Err.Error())
 			}

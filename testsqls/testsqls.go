@@ -5,50 +5,44 @@ import (
 	"github.com/qaqcatz/impomysql/connector"
 )
 
-// sudo docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql
+// dbms
 const (
 	host = "127.0.0.1"
-	port = 13306
 	username = "root"
 	password = "123456"
 	dbname = "TEST"
+
+	MySQL = "mysql"
+	MariaDB = "mariadb"
+	TiDB = "tidb"
+	OceanBase = "oceanbase"
+
+	mySQLPort = 13306 // docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql
+	mariaDBPort = 23306 // docker run --name mariadbtest -e MYSQL_ROOT_PASSWORD=123456 -p 23306:3306 -d docker.io/library/mariadb
+	// docker run --name tidb-server -d -p 4000:4000 pingcap/tidb:latest
+	// SET PASSWORD = '123456'
+	tiDBPort = 4000
+	// docker run -p 2881:2881 --name obstandalone -d oceanbase/oceanbase-ce
+	// SET PASSWORD = PASSWORD('123456');
+	oceanBasePort = 2881
 )
 
-// InitDBTEST:
-//   DROP DATABASE IF EXISTS TEST
-//   CREATE DATABASE TEST
-func InitDBTEST() error {
-	conn, err := connector.NewConnector(host, port, username, password, "", "")
-	if err != nil {
-		return err
+// GetConnector: get connector for the DBMS, default: MySQL
+func GetConnector(DBMS string) (*connector.Connector, error) {
+	myPort := 0
+	switch DBMS {
+	case MySQL:
+		myPort = mySQLPort
+	case MariaDB:
+		myPort = mariaDBPort
+	case TiDB:
+		myPort = tiDBPort
+	case OceanBase:
+		myPort = oceanBasePort
+	default:
+		myPort = mySQLPort
 	}
-	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	result = conn.ExecSQL("CREATE DATABASE " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	return nil
-}
-
-// InitDBTEST:
-//   CREATE DATABASE IF NOT EXISTS TEST
-func EnsureDBTEST() error {
-	conn, err := connector.NewConnector(host, port, username, password, "", "")
-	if err != nil {
-		return err
-	}
-	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	return nil
-}
-
-func GetConnector() (*connector.Connector, error) {
-	conn, err := connector.NewConnector(host, port, username, password, dbname, "")
+	conn, err := connector.NewConnector(host, myPort, username, password, dbname, "")
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +50,8 @@ func GetConnector() (*connector.Connector, error) {
 }
 
 // SQLExec: Execute the sql, print the result into standard output stream.
-func SQLExec(sql string) error {
-	conn, err := GetConnector()
+func SQLExec(sql string, DBMS string) error {
+	conn, err := GetConnector(DBMS)
 	if err != nil {
 		return err
 	}
@@ -71,8 +65,8 @@ func SQLExec(sql string) error {
 }
 
 // SQLExecS: see connector.Connector .SQLExecS
-func SQLExecS(sql string) error {
-	conn, err := GetConnector()
+func SQLExecS(sql string, DBMS string) error {
+	conn, err := GetConnector(DBMS)
 	if err != nil {
 		return err
 	}
@@ -93,8 +87,8 @@ func SQLExecS(sql string) error {
 //   INSERT INTO COMPANY VALUES
 //   (1, 'A', 18, 'a'), (2, 'B', 19, 'b'), (3, 'C', 20, 'c'),
 //   (4, 'A', 19, 'c'), (5, 'A', 19, 'c'), (6, 'B', 18, 'b')
-func InitTableCOMPANY() error {
-	conn, err := GetConnector()
+func InitTableCOMPANY(DBMS string) error {
+	conn, err := GetConnector(DBMS)
 	if err != nil {
 		return err
 	}
@@ -167,88 +161,3 @@ const (
 	SQLBetween = "SELECT * FROM COMPANY WHERE ID BETWEEN 1 AND 3"
 	SQLBetween2 = "SELECT * FROM COMPANY WHERE ID BETWEEN '1' AND '3'"
 )
-
-// other dbms
-
-const (
-	MariaDB = "mariadb"
-	TiDB = "tidb"
-	OceanBase = "oceanbase"
-
-	MariaDBPort = 23306 // docker run --name mariadbtest -e MYSQL_ROOT_PASSWORD=123456 -p 23306:3306 -d docker.io/library/mariadb
-	// docker run --name tidb-server -d -p 4000:4000 pingcap/tidb:latest
-	// SET PASSWORD = '123456'
-	TiDBPort = 4000
-	// docker run -p 2881:2881 --name obstandalone -d oceanbase/oceanbase-ce
-	// SET PASSWORD = PASSWORD('123456');
-	OceanBasePort = 2881
-)
-
-func InitOtherDBTEST(DBMS string) error {
-	myPort := 0
-	switch DBMS {
-	case MariaDB:
-		myPort = MariaDBPort
-	case TiDB:
-		myPort = TiDBPort
-	case OceanBase:
-		myPort = OceanBasePort
-	default:
-		myPort = port
-	}
-	conn, err := connector.NewConnector(host, myPort, username, password, "", "")
-	if err != nil {
-		return err
-	}
-	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	result = conn.ExecSQL("CREATE DATABASE " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	return nil
-}
-
-func EnsureOtherDBTEST(DBMS string) error {
-	myPort := 0
-	switch DBMS {
-	case MariaDB:
-		myPort = MariaDBPort
-	case TiDB:
-		myPort = TiDBPort
-	case OceanBase:
-		myPort = OceanBasePort
-	default:
-		myPort = port
-	}
-	conn, err := connector.NewConnector(host, myPort, username, password, "", "")
-	if err != nil {
-		return err
-	}
-	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + dbname)
-	if result.Err != nil {
-		return result.Err
-	}
-	return nil
-}
-
-func GetOtherDBConnector(DBMS string) (*connector.Connector, error) {
-	myPort := 0
-	switch DBMS {
-	case MariaDB:
-		myPort = MariaDBPort
-	case TiDB:
-		myPort = TiDBPort
-	case OceanBase:
-		myPort = OceanBasePort
-	default:
-		myPort = port
-	}
-	conn, err := connector.NewConnector(host, myPort, username, password, dbname, "")
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}

@@ -15,23 +15,12 @@ const (
 )
 
 func TestConnector_ExecSQL(t *testing.T) {
-	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, "", "")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS TEST")
-	if result.Err != nil {
-		t.Fatal(result.Err.Error())
-	} else {
-		t.Log(result.ToString())
-	}
-
-	conn, err = NewConnector(testHost, testPort, testUsername, testPassword, testDBname, "")
+	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, testDBname, "")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	result = conn.ExecSQL("DROP TABLE IF EXISTS T")
+	result := conn.ExecSQL("DROP TABLE IF EXISTS T")
 	if result.Err != nil {
 		t.Fatal(result.Err.Error())
 	} else {
