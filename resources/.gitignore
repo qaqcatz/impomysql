@@ -1,0 +1,5 @@
+./go-randgen
+./taskconfig.json
+./taskpoolconfig.json
+./test.data.sql
+./test.rand.sql

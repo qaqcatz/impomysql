@@ -5,6 +5,6 @@
 // stage2. mutation.
 // Note that a sql statement can have multiple mutations.
 //
-// You should execute these mutated sqls yourself, and use the implication oracle
-// to detect logical bugs. see oracle.Check
+// You can use the implication oracle
+// to detect logical bugs. see oracle.Check + oracle.DoubleCheck
 package mutation

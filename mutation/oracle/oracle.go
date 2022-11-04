@@ -5,14 +5,11 @@ import "github.com/qaqcatz/impomysql/connector"
 
 // Check: check impo
 func Check(originResult *connector.Result, newResult *connector.Result, isUpper bool) bool {
+	// ignore error
 	isErr1 := (originResult.Err != nil)
 	isErr2 := (newResult.Err != nil)
 	if isErr1 || isErr2 {
-		// isErr1&&!isErr2, !isErr1&&isErr2, isErr1&&isErr2
-		if (isErr1 && isErr2) {
-			return true
-		}
-		return false
+		return true
 	}
 
 	empty1 := originResult.IsEmpty()
@@ -46,7 +43,7 @@ func Check(originResult *connector.Result, newResult *connector.Result, isUpper 
 	//	}
 	//}
 
-	// Rows -> string
+	// Rows -> []string
 	res1 := originResult.FlatRows()
 	res2 := newResult.FlatRows()
 
@@ -81,7 +78,9 @@ func Check(originResult *connector.Result, newResult *connector.Result, isUpper 
 	return true
 }
 
-// DoubleCheck: see *(connector.Connector).ExecSQLX
+// DoubleCheck: see *(connector.Connector).ExecSQLX first.
+// Sometimes golang mysql driver will return a non-empty result, while mysql-client will return an error.
+// Therefore we will eventually use mysql-client to execute the sql and check for errors.
 func DoubleCheck(conn *connector.Connector, originSql string, newSql string, originErr bool, newErr bool) bool {
 	if !originErr {
 		_, _, err := conn.ExecSQLX(originSql)

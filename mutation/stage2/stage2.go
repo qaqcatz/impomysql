@@ -6,7 +6,6 @@ import (
 	"github.com/pingcap/tidb/parser/ast"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/qaqcatz/impomysql/connector"
-	"strconv"
 )
 
 // CalCandidates: see MutateVisitor
@@ -86,46 +85,30 @@ func ImpoMutateAndExec(rootNode ast.Node, candidate *Candidate, seed int64,
 	return sql, result, nil
 }
 
-// MutateResult: slice of (mutation name, mutated sql, isUpper, error)
+// MutateUnit (mutation name, mutated sql, isUpper, error, execute result).
 //
-// IsUppers: Does the theoretical execution result of
-// the current mutated statement increase?
-type MutateResult struct {
-	MutNames []string
-	MutSqls  []string
-	IsUppers []bool // (Candidate.U^Candidate.Flag)^1) == 1
-	MutErrs  []error
-	Err      error
+// IsUppers: true: the theoretical execution result of the current mutated statement will increase.
+// It is actually ((Candidate.U ^ Candidate.Flag)^1) == 1
+type MutateUnit struct {
+	Name string
+	Sql string
+	IsUpper bool
+	Err error
 
-	ExecResults []*connector.Result // exec MutSqls, nil if MutErrs[i] != nil
+	ExecResult *connector.Result
 }
 
-func (mutateResult *MutateResult) ToString() string {
-	res := ""
-	for i, mutName := range mutateResult.MutNames {
-		if i != 0 {
-			res += "\n"
-		}
-		res += "["+strconv.Itoa(i)+"]==========\n"
-		res += "[MutName] " + mutName + "\n"
-		if mutateResult.MutErrs[i] != nil {
-			res += "[MutErr] " + mutateResult.MutErrs[i].Error()
-		} else {
-			res += "[MutSql] " + mutateResult.MutSqls[i] + "\n"
-			res += "[IsUpper] " + strconv.FormatBool(mutateResult.IsUppers[i])
-		}
-	}
-	return res
+// MutateResult: []*MutateUnit + error
+type MutateResult struct {
+	MutateUnits []*MutateUnit
+	Err      error
 }
 
 // MutateAll: For the input sql, try all of its mutation points.
 // We will save the mutated sqls into *MutateResult.
 func MutateAll(sql string, seed int64) *MutateResult {
 	mutateResult := &MutateResult {
-		MutNames: make([]string, 0),
-		MutSqls:  make([]string, 0),
-		IsUppers: make([]bool, 0),
-		MutErrs:  make([]error, 0),
+		MutateUnits: make([]*MutateUnit, 0),
 		Err:      nil,
 	}
 
@@ -138,11 +121,15 @@ func MutateAll(sql string, seed int64) *MutateResult {
 	root := v.Root
 	for mutationName, candidateList := range v.Candidates {
 		for _, candidate := range candidateList {
-			mutateResult.MutNames = append(mutateResult.MutNames, mutationName)
-			mutateResult.IsUppers = append(mutateResult.IsUppers, ((candidate.U^candidate.Flag)^1) == 1)
 			newSql, err := ImpoMutate(root, candidate, seed)
-			mutateResult.MutErrs = append(mutateResult.MutErrs, err)
-			mutateResult.MutSqls = append(mutateResult.MutSqls, newSql)
+			mutateResult.MutateUnits = append(mutateResult.MutateUnits, &MutateUnit{
+				Name: mutationName,
+				Sql: newSql,
+				IsUpper: ((candidate.U^candidate.Flag)^1) == 1,
+				Err: err,
+
+				ExecResult: nil,
+			})
 		}
 	}
 
@@ -155,14 +142,11 @@ func MutateAllAndExec(sql string, seed int64, conn *connector.Connector) *Mutate
 	if mutateResult.Err != nil {
 		return mutateResult
 	}
-	mutateResult.ExecResults = make([]*connector.Result, 0)
-	for i, sqlm := range mutateResult.MutSqls {
-		if mutateResult.MutErrs[i] != nil {
-			mutateResult.ExecResults = append(mutateResult.ExecResults, nil)
-		} else {
-			result := conn.ExecSQLS(sqlm)
-			mutateResult.ExecResults = append(mutateResult.ExecResults, result)
+	for _, mutateUnit := range mutateResult.MutateUnits {
+		if mutateUnit.Err != nil {
+			continue
 		}
+		mutateUnit.ExecResult = conn.ExecSQLS(mutateUnit.Sql)
 	}
 	return mutateResult
 }

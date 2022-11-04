@@ -24,7 +24,7 @@ type Connector struct {
 	db              *gorm.DB
 }
 
-// NewConnector: create Connector.
+// NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname
 //
 // Default mysqlClientPath: /usr/bin/mysql
 func NewConnector(host string, port int, username string, password string, dbname string, mysqlClientPath string) (*Connector, error) {
@@ -33,12 +33,12 @@ func NewConnector(host string, port int, username string, password string, dbnam
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
-		username, password, host, port, dbname)
+		username, password, host, port, "")
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		return nil, errors.New("NewConnector: create Connector error: " + err.Error())
 	}
-	return &Connector{
+	conn := &Connector{
 		DSN:             dsn,
 		Host:            host,
 		Port:            port,
@@ -47,7 +47,13 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		DbName:          dbname,
 		MysqlClientPath: mysqlClientPath,
 		db:              db,
-	}, nil
+	}
+	// CREATE DATABASE IF NOT EXISTS conn.DbName
+	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + conn.DbName)
+	if result.Err != nil {
+		return nil, errors.New("NewConnector: create database if not exists error: " + result.Err.Error())
+	}
+	return conn, nil
 }
 
 // Result:
@@ -198,7 +204,9 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 	return result
 }
 
-// ExecSQLS: There is a bug in golang mysql driver:
+// ExecSQLS: execute sql, return *Result.
+//
+// There is a bug in golang mysql driver:
 //
 // If you execute the following sql in mysql-client, you will see:
 //   mysql> select 9223372036854775807 + 1 > 1;
@@ -212,8 +220,6 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 //
 // Therefore, it is recommended to use ExecSQLS to query.
 // Note that do not use this function for other ddl/dml, only use it to query without side effects!
-//
-// todo check ExecSQL, change it to ExecSQLS
 func (conn *Connector) ExecSQLS(sql string) *Result {
 	res1 := conn.ExecSQL(sql)
 	if res1.Err == nil && res1.IsEmpty() {
@@ -279,4 +285,33 @@ func (conn *Connector) ExecSQLX(sql string) (string, string, error) {
 		return outBuf.String(), errBuf.String(), errors.New("ExecSQLX: mysqlClient.Wait() error: " + err.Error())
 	}
 	return outBuf.String(), errBuf.String(), nil
+}
+
+// InitDBTEST:
+//   DROP DATABASE IF EXISTS Connector.DbName
+//   CREATE DATABASE Connector.DbName
+func (conn *Connector) InitDB() error {
+	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + conn.DbName)
+	if result.Err != nil {
+		return result.Err
+	}
+	result = conn.ExecSQL("CREATE DATABASE " + conn.DbName)
+	if result.Err != nil {
+		return result.Err
+	}
+	result = conn.ExecSQL("USE " + conn.DbName)
+	if result.Err != nil {
+		return result.Err
+	}
+	return nil
+}
+
+// RmDB:
+//   DROP DATABASE IF EXISTS Connector.DbName
+func (conn *Connector) RmDB() error {
+	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + conn.DbName)
+	if result.Err != nil {
+		return result.Err
+	}
+	return nil
 }

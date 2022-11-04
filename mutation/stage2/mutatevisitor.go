@@ -30,7 +30,7 @@ import (
 //     SELECT * FROM T WHERE (X > 0) IS FALSE;
 //     [lower mutation ] x > 0 -> X > 1
 //     The result set will expand
-// Obviously you should use ((U^Flag)^1) == 1 to calculate the effect of mutation
+// Obviously you should use ((U ^ Flag)^1) == 1 to calculate the effect of mutation
 type Candidate struct {
 	MutationName string // mutation name
 	// 1: upper mutation, strings.HasSuffix(MutationName, "U"): true;

@@ -6,6 +6,14 @@ tables = {
     partitions = {2},
 }
 
+--tables = {
+--    rows = {10, 30},
+--    -- SHOW CHARACTER SET;
+--    charsets = {'utf8', 'latin1', 'binary'},
+--    -- partition number
+--    partitions = {4, 6, 'undef'},
+--}
+
 fields = {
     types = {'bigint', 'float', 'double', 'decimal(40, 20)',
              'char(20)', 'varchar(20)'},

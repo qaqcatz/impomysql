@@ -28,6 +28,7 @@ func Init(sql string) *InitResult {
 	initResult := &InitResult{
 		InitSql: "",
 		Err: nil,
+		ExecResult: nil,
 	}
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
