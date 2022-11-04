@@ -1,13 +1,8 @@
 package testsqls
 
 import (
-	"errors"
 	"fmt"
 	"github.com/qaqcatz/impomysql/connector"
-	"io/ioutil"
-	"log"
-	"path"
-	"runtime"
 )
 
 // sudo docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql
@@ -90,7 +85,6 @@ func SQLExecS(sql string) error {
 	return nil
 }
 
-
 // table benchmark:
 
 // InitTableCOMPANY:
@@ -172,67 +166,7 @@ const (
 	SQLRegExp = "SELECT * FROM COMPANY WHERE 'abc' NOT REGEXP '^A[B]*C$'"
 	SQLBetween = "SELECT * FROM COMPANY WHERE ID BETWEEN 1 AND 3"
 	SQLBetween2 = "SELECT * FROM COMPANY WHERE ID BETWEEN '1' AND '3'"
-	SQLBetween3 = "SELECT * FROM COMPANY WHERE NAME BETWEEN 0 AND 'A'"
 )
-
-// sql file benchmark:
-
-// getPackagePath: get the package actual path, then you can read files under the path.
-func getPackagePath() (string, error) {
-	if _, file, _, ok := runtime.Caller(0); !ok {
-		return "", errors.New("PackagePath: runtime.Caller(0) error ")
-	} else {
-		return path.Join(file, "../"), nil
-	}
-}
-
-const (
-	SQLFileQuote = "quote"
-	SQLFileTest = "test"
-	SQLFileAgg = "agg"
-	SQLFileWindow = "window"
-)
-
-// ReadSQLFile: read the sql file under testsqls with the help of runtime.Caller().
-//
-// The third return value is the absolute filepath,
-// you can use it to get the actual location of the file
-func ReadSQLFile(sqlFileName string) ([]byte, error, string) {
-	sqlFileName += ".sql"
-	packagePath, err := getPackagePath()
-	if err != nil {
-		return nil, errors.New("ReadSQLFile: getPackagePath() error "), ""
-	}
-	sqlFilePath := path.Join(packagePath, sqlFileName)
-	data, err := ioutil.ReadFile(sqlFilePath)
-	if err != nil {
-		return nil, errors.New("ReadSQLFile: read " + sqlFilePath + " error: " + err.Error()), ""
-	}
-	return data, nil, sqlFilePath
-}
-
-// test .zz, .yy
-
-const (
-	zzTest = "test.zz.lua"
-	yyTest = "test.yy"
-)
-
-func GetTestZZPath() string {
-	packagePath, err := getPackagePath()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return path.Join(packagePath, zzTest)
-}
-
-func GetTestYYPath() string {
-	packagePath, err := getPackagePath()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return path.Join(packagePath, yyTest)
-}
 
 // other dbms
 

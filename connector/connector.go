@@ -24,7 +24,7 @@ type Connector struct {
 	db              *gorm.DB
 }
 
-// NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname
+// NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname + USE dbname when dbname != ""
 //
 // Default mysqlClientPath: /usr/bin/mysql
 func NewConnector(host string, port int, username string, password string, dbname string, mysqlClientPath string) (*Connector, error) {
@@ -48,10 +48,17 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		MysqlClientPath: mysqlClientPath,
 		db:              db,
 	}
-	// CREATE DATABASE IF NOT EXISTS conn.DbName
-	result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + conn.DbName)
-	if result.Err != nil {
-		return nil, errors.New("NewConnector: create database if not exists error: " + result.Err.Error())
+	if dbname != "" {
+		// CREATE DATABASE IF NOT EXISTS conn.DbName
+		result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + conn.DbName)
+		if result.Err != nil {
+			return nil, errors.New("NewConnector: create database if not exists error: " + result.Err.Error())
+		}
+		// USE conn.DbName
+		result = conn.ExecSQL("USE " + conn.DbName)
+		if result.Err != nil {
+			return nil, errors.New("NewConnector: use database error: " + result.Err.Error())
+		}
 	}
 	return conn, nil
 }
@@ -290,6 +297,7 @@ func (conn *Connector) ExecSQLX(sql string) (string, string, error) {
 // InitDBTEST:
 //   DROP DATABASE IF EXISTS Connector.DbName
 //   CREATE DATABASE Connector.DbName
+//   USE Connector.DbName
 func (conn *Connector) InitDB() error {
 	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + conn.DbName)
 	if result.Err != nil {
