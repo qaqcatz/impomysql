@@ -270,7 +270,7 @@ func SaveLogicalBug(bugsPath string, bugId int, sqlId int, mutationName string, 
 //   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .log, see BugReport.
 //   2.4 save the result of stage1+stage2 into outputPath/DBMS/taskId/result.json, see TaskResult
 //
-// Note that: remove database after task finished
+// Note that: remove database after task finished, close connector
 func RunTask(config *TaskConfig) error {
 	// 0. check input
 	if err := TaskInputCheck(config); err != nil {
@@ -306,6 +306,12 @@ func RunTask(config *TaskConfig) error {
 	logger.Info("create connector")
 	conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password,
 		config.DbName, config.MysqlClientPath)
+	// close connector
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	} ()
 	if err != nil {
 		logger.Error("create connector error: " + err.Error())
 		return errors.New("RunTask: create connector error: " + err.Error())

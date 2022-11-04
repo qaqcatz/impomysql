@@ -323,3 +323,9 @@ func (conn *Connector) RmDB() error {
 	}
 	return nil
 }
+
+// Close:
+func (conn *Connector) Close() {
+	sqlDB, _ := conn.db.DB()
+	_ = sqlDB.Close()
+}
