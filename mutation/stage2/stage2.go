@@ -81,7 +81,7 @@ func ImpoMutateAndExec(rootNode ast.Node, candidate *Candidate, seed int64,
 	if err != nil {
 		return "", nil, errors.New("ImpoMutateAndExec: " + err.Error())
 	}
-	result := conn.ExecSQLS(sql)
+	result := conn.ExecSQL(sql)
 	return sql, result, nil
 }
 
@@ -146,7 +146,7 @@ func MutateAllAndExec(sql string, seed int64, conn *connector.Connector) *Mutate
 		if mutateUnit.Err != nil {
 			continue
 		}
-		mutateUnit.ExecResult = conn.ExecSQLS(mutateUnit.Sql)
+		mutateUnit.ExecResult = conn.ExecSQL(mutateUnit.Sql)
 	}
 	return mutateResult
 }

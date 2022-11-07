@@ -70,7 +70,7 @@ func InitAndExec(sql string, conn *connector.Connector) *InitResult {
 	if initResult.Err != nil {
 		return initResult
 	}
-	result := conn.ExecSQLS(initResult.InitSql)
+	result := conn.ExecSQL(initResult.InitSql)
 	initResult.ExecResult = result
 	return initResult
 }

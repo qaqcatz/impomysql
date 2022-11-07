@@ -23,7 +23,7 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 
 	// execute original sql
 	t.Log("[origin]", sql)
-	originResult := conn.ExecSQLS(sql)
+	originResult := conn.ExecSQL(sql)
 	if originResult.Err != nil {
 		t.Fatal(originResult.Err.Error())
 	}
@@ -60,7 +60,7 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 
 			// execute new sql
 			t.Log("[newSql]", string(newSql))
-			result := conn.ExecSQLS(string(newSql))
+			result := conn.ExecSQL(string(newSql))
 			if result.Err != nil {
 				t.Fatal(result.Err.Error())
 			}

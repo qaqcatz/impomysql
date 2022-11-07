@@ -10,13 +10,13 @@ func testInitCommon(t *testing.T, sql string) {
 		t.Fatal(err.Error())
 	}
 
-	if err := testsqls.SQLExecS(sql, ""); err != nil {
+	if err := testsqls.SQLExec(sql, ""); err != nil {
 		t.Fatal(err.Error())
 	}
 	if initResult := Init(sql); initResult.Err != nil {
 		t.Fatal(initResult.Err.Error())
 	} else {
-		if err := testsqls.SQLExecS(initResult.InitSql, ""); err != nil {
+		if err := testsqls.SQLExec(initResult.InitSql, ""); err != nil {
 			t.Fatal(err.Error())
 		}
 	}

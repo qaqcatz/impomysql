@@ -1,13 +1,11 @@
 package connector
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"os/exec"
 	"strconv"
 	"time"
 )
@@ -20,18 +18,11 @@ type Connector struct {
 	Username        string
 	Password        string
 	DbName          string
-	MysqlClientPath string
 	db              *gorm.DB
 }
 
 // NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname + USE dbname when dbname != ""
-//
-// Default mysqlClientPath: /usr/bin/mysql
-func NewConnector(host string, port int, username string, password string, dbname string, mysqlClientPath string) (*Connector, error) {
-	if mysqlClientPath == "" {
-		mysqlClientPath = "/usr/bin/mysql"
-	}
-
+func NewConnector(host string, port int, username string, password string, dbname string) (*Connector, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
 		username, password, host, port, "")
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
@@ -45,7 +36,6 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		Username:        username,
 		Password:        password,
 		DbName:          dbname,
-		MysqlClientPath: mysqlClientPath,
 		db:              db,
 	}
 	if dbname != "" {
@@ -207,91 +197,14 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 		result.Rows = append(result.Rows, dataS)
 	}
 
+	if rows.Err() != nil {
+		return &Result{
+			Err: errors.New("Connector.ExecSQL: rows error: " + rows.Err().Error()),
+		}
+	}
+
 	result.Time = time.Since(startTime)
 	return result
-}
-
-// ExecSQLS: execute sql, return *Result.
-//
-// There is a bug in golang mysql driver:
-//
-// If you execute the following sql in mysql-client, you will see:
-//   mysql> select 9223372036854775807 + 1 > 1;
-//   ERROR 1690 (22003): BIGINT value is out of range in '(9223372036854775807 + 1)'
-// However, when execute this sql in gorm, no error, just an empty result.
-//
-// We will double check the result:
-//
-// when sql1 returns an empty result and no error occurred, change it to sql2=SELECT EXISTS (sql1),
-// if sql2 returns 0, then sql1 is really empty, otherwise an error occurred.
-//
-// Therefore, it is recommended to use ExecSQLS to query.
-// Note that do not use this function for other ddl/dml, only use it to query without side effects!
-func (conn *Connector) ExecSQLS(sql string) *Result {
-	res1 := conn.ExecSQL(sql)
-	if res1.Err == nil && res1.IsEmpty() {
-		sql2 := "SELECT EXISTS (" + sql + " )"
-		res2 := conn.ExecSQL(sql2)
-		if res2.Err == nil && len(res2.Rows) == 1 && len(res2.Rows[0]) == 1 && res2.Rows[0][0] == "0" {
-			return res1
-		} else {
-			res1.Err = errors.New("ExecSQLS: unknown error, maybe BIGINT value is out of range. ")
-			return res1
-		}
-	} else {
-		return res1
-	}
-}
-
-// ExecSQLX: see ExecSQLS first.
-// Unfortunately, sometimes golang mysql driver will return a non-empty result, while mysql-client will return an error.
-// Therefore we will eventually use mysql-client to execute the sql and check for errors.
-// Note that this function is very slow, only use it to verify bugs.
-//
-// Actually, we execute sql | Connector.MysqlClientPath -h Connector.Host -P Connector.Port
-// -u Connector.Username --password=Connector.Password Connector.DbName by pipeline, and
-// return output stream, error stream, error
-func (conn *Connector) ExecSQLX(sql string) (string, string, error) {
-	sqlBuf := bytes.NewBufferString(sql)
-
-	mysqlClient := exec.Command("/bin/bash", "-c",
-		conn.MysqlClientPath+
-		" -h " + conn.Host +
-		" -P " + strconv.Itoa(conn.Port) +
-		" -u " + conn.Username +
-		" -p" + conn.Password +
-		" " + conn.DbName)
-
-	readPipe, err := mysqlClient.StdinPipe()
-	if err != nil {
-		return "", "", errors.New("ExecSQLX: mysqlClient.StdinPipe() error: " + err.Error())
-	}
-
-	_, err = sqlBuf.WriteTo(readPipe)
-	if err != nil {
-		return "", "", errors.New("ExecSQLX: sqlBuf.WriteTo(readPipe) error: " + err.Error())
-	}
-
-	var outBuf bytes.Buffer
-	var errBuf bytes.Buffer
-	mysqlClient.Stdout = &outBuf
-	mysqlClient.Stderr = &errBuf
-
-	err = mysqlClient.Start()
-	if err != nil {
-		return "", "", errors.New("ExecSQLX: mysqlClient.Start() error: " + err.Error())
-	}
-
-	err = readPipe.Close()
-	if err != nil {
-		return "", "", errors.New("ExecSQLX: readPipe.Close() error: " + err.Error())
-	}
-
-	err = mysqlClient.Wait()
-	if err != nil {
-		return outBuf.String(), errBuf.String(), errors.New("ExecSQLX: mysqlClient.Wait() error: " + err.Error())
-	}
-	return outBuf.String(), errBuf.String(), nil
 }
 
 // InitDBTEST:
@@ -322,10 +235,4 @@ func (conn *Connector) RmDB() error {
 		return result.Err
 	}
 	return nil
-}
-
-// Close:
-func (conn *Connector) Close() {
-	sqlDB, _ := conn.db.DB()
-	_ = sqlDB.Close()
 }

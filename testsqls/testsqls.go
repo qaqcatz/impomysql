@@ -42,7 +42,7 @@ func GetConnector(DBMS string) (*connector.Connector, error) {
 	default:
 		myPort = mySQLPort
 	}
-	conn, err := connector.NewConnector(host, myPort, username, password, dbname, "")
+	conn, err := connector.NewConnector(host, myPort, username, password, dbname)
 	if err != nil {
 		return nil, err
 	}
@@ -57,21 +57,6 @@ func SQLExec(sql string, DBMS string) error {
 	}
 	fmt.Println("Exec SQL:", sql)
 	result := conn.ExecSQL(sql)
-	if result.Err != nil {
-		return result.Err
-	}
-	fmt.Println("Exec result:", result.ToString())
-	return nil
-}
-
-// SQLExecS: see connector.Connector .SQLExecS
-func SQLExecS(sql string, DBMS string) error {
-	conn, err := GetConnector(DBMS)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Exec SQL:", sql)
-	result := conn.ExecSQLS(sql)
 	if result.Err != nil {
 		return result.Err
 	}

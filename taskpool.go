@@ -23,7 +23,6 @@ type TaskPoolConfig struct {
 	Username        string `json:"username"`
 	Password        string `json:"password"`
 	DbPrefix        string `json:"dbPrefix"`
-	MysqlClientPath string `json:"mysqlClientPath"` // default: /usr/bin/mysql
 	GoRandGenPath   string `json:"goRandGenPath"`
 	ZZPath          string `json:"zzPath"`
 	YYPath          string `json:"yyPath"`
@@ -174,7 +173,6 @@ func PrepareAndRunTask(threadPool chan int, finTaskNum *int32, errTaskNum *int32
 		Username: config.Username,
 		Password: config.Password,
 		DbName: config.DbPrefix + strconv.Itoa(taskId),
-		MysqlClientPath: config.MysqlClientPath,
 		DDLPath: "",
 		DMLPath: "",
 		Seed: config.Seed + int64(taskId),

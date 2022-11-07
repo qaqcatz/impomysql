@@ -162,7 +162,6 @@ type TaskResult struct {
 	Stage2ErrNum     int    `json:"stage2ErrNum"`
 	Stage2ExecNum    int    `json:"stage2ExecNum"`
 	Stage2ExecErrNum int    `json:"stage2ExecErrNum"`
-	DriverErrNum     int    `json:"driverErrNum"`
 	ImpoBugsNum      int    `json:"impoBugsNum"`
 	SaveBugErrNum    int    `json:"saveBugErrNum"`
 	EndTime          string `json:"endTime"`
@@ -265,12 +264,12 @@ func SaveLogicalBug(bugsPath string, bugId int, sqlId int, mutationName string, 
 // for each dml sql, do:
 //   2.1 stage1.InitAndExec
 //   2.2 stage2.MutateAllAndExec
-//   2.3 use oracle.Check and oracle.DoubleCheck to detect logical bugs, save logical bugs into
+//   2.3 use oracle.Check to detect logical bugs, save logical bugs into
 //   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .json and
 //   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .log, see BugReport.
 //   2.4 save the result of stage1+stage2 into outputPath/DBMS/taskId/result.json, see TaskResult
 //
-// Note that: remove database after task finished, close connector
+// Note that: remove database after task finished
 func RunTask(config *TaskConfig) error {
 	// 0. check input
 	if err := TaskInputCheck(config); err != nil {
@@ -304,14 +303,7 @@ func RunTask(config *TaskConfig) error {
 	logger.SetLevel(logrus.InfoLevel)
 	// 1.3 create connector
 	logger.Info("create connector")
-	conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password,
-		config.DbName, config.MysqlClientPath)
-	// close connector
-	defer func() {
-		if conn != nil {
-			conn.Close()
-		}
-	} ()
+	conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
 	if err != nil {
 		logger.Error("create connector error: " + err.Error())
 		return errors.New("RunTask: create connector error: " + err.Error())
@@ -370,7 +362,6 @@ func RunTask(config *TaskConfig) error {
 		Stage2ErrNum:     0,
 		Stage2ExecNum:    0,
 		Stage2ExecErrNum: 0,
-		DriverErrNum:     0,
 		ImpoBugsNum:      0,
 		SaveBugErrNum:    0,
 		EndTime:          "",
@@ -450,18 +441,10 @@ func RunTask(config *TaskConfig) error {
 			mutatedSql := mutateUnit.Sql
 			mutatedResult := mutateUnit.ExecResult
 
-			//   2.3 use oracle.Check and oracle.DoubleCheck to detect logical bugs, save logical bugs into
+			//   2.3 use oracle.Check to detect logical bugs, save logical bugs into
 			//   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .json and
 			//   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .log, see BugReport.
 			if !oracle.Check(originalResult, mutatedResult, isUpper) {
-				// double check
-				if !oracle.DoubleCheck(conn, originalSql, mutatedSql, originalResult.Err != nil, mutatedResult.Err != nil) {
-					taskResult.DriverErrNum += 1
-					logger.Error("--------------------------------------------------")
-					logger.Error("[Driver Error]", "(", dmlSql.Id, "-", mutationName, ")", mutatedSql)
-					logger.Error("--------------------------------------------------")
-					continue
-				}
 				// logical bug!!!
 				bugId := taskResult.ImpoBugsNum
 				taskResult.ImpoBugsNum += 1

@@ -10,7 +10,7 @@ func testLearnASTCommon(t *testing.T, sql string) {
 		t.Fatal(err.Error())
 	}
 
-	if err := testsqls.SQLExecS(sql, ""); err != nil {
+	if err := testsqls.SQLExec(sql, ""); err != nil {
 		t.Fatal(err.Error())
 	}
 	if sql, err := learnAST(sql); err != nil {
