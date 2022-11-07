@@ -41,7 +41,7 @@ func doTask(args []string) {
 	if len(args) <= 2 {
 		log.Fatal("len(args) <= 2")
 	}
-	err := RunTask(readTaskConfig(args[2]))
+	err := RunTask(readTaskConfig(args[2]), nil)
 	if err != nil {
 		log.Fatal("task error: ", err)
 	}

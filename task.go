@@ -255,7 +255,7 @@ func SaveLogicalBug(bugsPath string, bugId int, sqlId int, mutationName string, 
 // 1. init:
 //   1.1 create if not exists outputPath/DBMS/taskId
 //   1.2 init outputPath/DBMS/taskId/task.log, create logger, write into outputPath/DBMS/taskId/task.log
-//   1.3 create connector
+//   1.3 create connector(if publicConn == nil, otherwise just use public Conn)
 //   1.4 read ddl, write ddl into outputPath/DBMS/taskId/ ddl .json, init database, execute ddl
 //   1.5 read dml, write dml into outputPath/DBMS/taskId/ dml .json
 //   1.6 init dir outputPath/DBMS/taskId/bugs
@@ -268,9 +268,7 @@ func SaveLogicalBug(bugsPath string, bugId int, sqlId int, mutationName string, 
 //   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .json and
 //   outputPath/DBMS/taskId/bugs/ BugId @ SqlId @ MutationName .log, see BugReport.
 //   2.4 save the result of stage1+stage2 into outputPath/DBMS/taskId/result.json, see TaskResult
-//
-// Note that: remove database after task finished
-func RunTask(config *TaskConfig) error {
+func RunTask(config *TaskConfig, publicConn *connector.Connector) error {
 	// 0. check input
 	if err := TaskInputCheck(config); err != nil {
 		return errors.New("RunTask: input check error: " + err.Error())
@@ -302,11 +300,17 @@ func RunTask(config *TaskConfig) error {
 	logger.SetOutput(multiWriter)
 	logger.SetLevel(logrus.InfoLevel)
 	// 1.3 create connector
-	logger.Info("create connector")
-	conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
-	if err != nil {
-		logger.Error("create connector error: " + err.Error())
-		return errors.New("RunTask: create connector error: " + err.Error())
+	var conn *connector.Connector = nil
+	if publicConn == nil {
+		logger.Info("create connector")
+		conn, err = connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
+		if err != nil {
+			logger.Error("create connector error: " + err.Error())
+			return errors.New("RunTask: create connector error: " + err.Error())
+		}
+	} else {
+		logger.Info("use public connector")
+		conn = publicConn
 	}
 	// 1.4 read ddl, write ddl into outputPath/DBMS/taskId/ ddl .json, init database, execute ddl
 	logger.Info("init ddl")
@@ -322,8 +326,6 @@ func RunTask(config *TaskConfig) error {
 		return errors.New("RunTask: write ddl.json error: " + err.Error())
 	}
 	err = InitDDLSqls(ddlSqls, conn)
-	// remove database after task finished
-	defer conn.RmDB()
 	if err != nil {
 		logger.Error("init ddl sqls error: " + err.Error())
 		return errors.New("RunTask: init ddl sqls error: " + err.Error())

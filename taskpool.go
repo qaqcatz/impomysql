@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -73,6 +74,8 @@ func (taskPoolConfig *TaskPoolConfig) GetOutputPath() string {
 // 1. init
 //   1.1 init OutputPath/DBMS
 //   1.2 init logger, write to OutputPath/DBMS/taskpool.log and os.Stdout
+//   1.3 create thread pool with size ThreadNum, fill with *connector.Connector,
+//   the database name of each connector is config.DbPrefix + thread id
 // 2. run, use thread pool(with size ThreadNum) to continuously execute tasks.
 // Each thread can only perform one task at the same time. see PrepareAndRunTask
 func RunTaskPool(config *TaskPoolConfig) error {
@@ -106,6 +109,18 @@ func RunTaskPool(config *TaskPoolConfig) error {
 	multiWriter := io.MultiWriter(writers...)
 	logger.SetOutput(multiWriter)
 	logger.SetLevel(logrus.InfoLevel)
+	// 1.3 create thread pool with size ThreadNum, fill with *connector.Connector,
+	// the database name of each connector is config.DbPrefix + thread id
+	threadPool := make(chan *connector.Connector, config.ThreadNum)
+	for i := 0; i < config.ThreadNum; i++ {
+		conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password,
+			config.DbPrefix + strconv.Itoa(i))
+		if err != nil {
+			logger.Error("create connector error: " + err.Error())
+			return errors.New("RunTaskPool: create connector error: " + err.Error())
+		}
+		threadPool <- conn
+	}
 	// **************************************************
 	// end 1
 
@@ -115,28 +130,28 @@ func RunTaskPool(config *TaskPoolConfig) error {
 	totalTaskNum := 0
 	var finTaskNum int32 = 0
 	var errTaskNum int32 = 0
-	threadPool := make(chan int, config.ThreadNum)
 	logger.Info("Running **************************************************")
 	// **************************************************
 	for {
 
+		// wait for a free connector
+		conn := <- threadPool
+
 		// max time limit
-		if config.MaxTimeS > 0 && time.Since(startTime) > time.Duration(config.MaxTimeS)*time.Second {
+		if config.MaxTimeS > 0 && time.Since(startTime) >= time.Duration(config.MaxTimeS)*time.Second {
 			logger.Info("max time!")
 			break
 		}
 		// max task limit
-		if config.MaxTimeS > 0 && atomic.LoadInt32(&finTaskNum) > int32(config.MaxTasks) {
+		if config.MaxTimeS > 0 && atomic.LoadInt32(&finTaskNum) >= int32(config.MaxTasks) {
 			logger.Info("max tasks!")
 			break
 		}
 
-		// wait for free
-		threadPool <- 1
 		// execute a new task
 		taskId := totalTaskNum
 		totalTaskNum += 1
-		go PrepareAndRunTask(threadPool, &finTaskNum, &errTaskNum, taskId,
+		go PrepareAndRunTask(conn, threadPool, &finTaskNum, &errTaskNum, taskId,
 			config, logger)
 	}
 	// **************************************************
@@ -153,12 +168,12 @@ func RunTaskPool(config *TaskPoolConfig) error {
 //   1. create task config, create task dir, write task config into task dir
 //   2. go-randgen write output.data.sql + output.rand.sql into task dir
 //   3. run task
-func PrepareAndRunTask(threadPool chan int, finTaskNum *int32, errTaskNum *int32, taskId int,
+func PrepareAndRunTask(conn *connector.Connector, threadPool chan *connector.Connector, finTaskNum *int32, errTaskNum *int32, taskId int,
 	config *TaskPoolConfig, logger *logrus.Logger) {
 
 	defer func () {
 		atomic.AddInt32(finTaskNum, 1)
-		<- threadPool
+		threadPool <- conn
 	} ()
 
 	logger.Info("Run task", taskId)
@@ -172,7 +187,7 @@ func PrepareAndRunTask(threadPool chan int, finTaskNum *int32, errTaskNum *int32
 		Port: config.Port,
 		Username: config.Username,
 		Password: config.Password,
-		DbName: config.DbPrefix + strconv.Itoa(taskId),
+		DbName: conn.DbName,
 		DDLPath: "",
 		DMLPath: "",
 		Seed: config.Seed + int64(taskId),
@@ -232,7 +247,7 @@ func PrepareAndRunTask(threadPool chan int, finTaskNum *int32, errTaskNum *int32
 		return
 	}
 	// 3. run task
-	err = RunTask(taskConfig)
+	err = RunTask(taskConfig, conn)
 	if err != nil {
 		atomic.AddInt32(errTaskNum, 1)
 		logger.Error("task", taskId, " run task error: ", err)

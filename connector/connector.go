@@ -226,13 +226,3 @@ func (conn *Connector) InitDB() error {
 	}
 	return nil
 }
-
-// RmDB:
-//   DROP DATABASE IF EXISTS Connector.DbName
-func (conn *Connector) RmDB() error {
-	result := conn.ExecSQL("DROP DATABASE IF EXISTS " + conn.DbName)
-	if result.Err != nil {
-		return result.Err
-	}
-	return nil
-}
