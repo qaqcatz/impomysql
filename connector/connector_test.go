@@ -17,18 +17,18 @@ const (
 func TestConnector_ExecSQL(t *testing.T) {
 	conn, err := NewConnector(testHost, testPort, testUsername, testPassword, testDBname)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 
 	result := conn.ExecSQL("DROP TABLE IF EXISTS T")
 	if result.Err != nil {
-		t.Fatal(result.Err.Error())
+		t.Fatalf("%+v", result.Err)
 	} else {
 		t.Log(result.ToString())
 	}
 	result = conn.ExecSQL("CREATE TABLE T(ID INT, NAME TEXT, X DOUBLE)")
 	if result.Err != nil {
-		t.Fatal(result.Err.Error())
+		t.Fatalf("%+v", result.Err)
 	} else {
 		t.Log(result.ToString())
 	}
@@ -36,7 +36,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		result := conn.ExecSQL("INSERT INTO T VALUES ("+strconv.Itoa(i)+", '"+string(rune(i+'A'))+"', -" + strconv.Itoa(i) + ")")
 		if result.Err != nil {
-			t.Fatal(result.Err.Error())
+			t.Fatalf("%+v", result.Err)
 		} else {
 			t.Log(result.ToString())
 		}
@@ -44,14 +44,14 @@ func TestConnector_ExecSQL(t *testing.T) {
 
 	result = conn.ExecSQL("SELECT 1+2, ID, NAME, X FROM T;")
 	if result.Err != nil {
-		t.Fatal(result.Err.Error())
+		t.Fatalf("%+v", result.Err)
 	} else {
 		t.Log(result.ToString())
 	}
 
 	result = conn.ExecSQL("select 9223372036854775807 + 1")
 	if result.Err != nil {
-		t.Log(result.Err.Error())
+		t.Logf("%+v", result.Err)
 	} else {
 		t.Fatal("must error!")
 	}
@@ -60,7 +60,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 
 	result = conn.ExecSQL(testSql)
 	if result.Err != nil {
-		t.Log(result.Err.Error())
+		t.Logf("%+v", result.Err)
 	} else {
 		t.Fatal("must error!")
 	}

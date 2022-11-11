@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -22,7 +22,7 @@ func doFixMOn1U(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		join := in.(*ast.Join)
 		// check
 		if join.On == nil {
-			return nil, errors.New("FixMOn1U: join.On == nil")
+			return nil, errors.New("[FixMOn1U]join.On == nil")
 		}
 		// mutate
 		old := join.On.Expr
@@ -34,14 +34,14 @@ func doFixMOn1U(rootNode ast.Node, in ast.Node) ([]byte, error) {
 
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("FixMOn1U: " +  err.Error())
+			return nil, errors.Wrap(err, "[FixMOn1U]restore error")
 		}
 		// recover
 		join.On.Expr = old
 		return sql, nil
 	case nil:
-		return nil, errors.New("FixMOn1U: type error: nil")
+		return nil, errors.New("[FixMOn1U]type nil")
 	default:
-		return nil, errors.New("FixMOn1U: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[FixMOn1U]type default " + reflect.TypeOf(in).String())
 	}
 }

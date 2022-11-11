@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/opcode"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pingcap/tidb/parser/ast"
@@ -42,9 +42,9 @@ func doFixMCmpOpL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		cmp := in.(*ast.CompareSubqueryExpr)
 		myOp = &cmp.Op
 	case nil:
-		return nil, errors.New("doFixMCmpOpL: type error: nil")
+		return nil, errors.New("[doFixMCmpOpL]type nil")
 	default:
-		return nil, errors.New("doFixMCmpOpL: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doFixMCmpOpL]type default " + reflect.TypeOf(in).String())
 	}
 
 	oldOp := *myOp
@@ -55,13 +55,13 @@ func doFixMCmpOpL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 	case opcode.GE:
 		newOp = opcode.GT
 	default:
-		return nil, errors.New("doFixMCmpOpL: Op default")
+		return nil, errors.New("[doFixMCmpOpL]Op default " + oldOp.String())
 	}
 	// mutate
 	*myOp = newOp
 	sql, err := restore(rootNode)
 	if err != nil {
-		return nil, errors.New("doFixMCmpOpL: " +  err.Error())
+		return nil, errors.Wrap(err, "[doFixMCmpOpL]restore error")
 	}
 	// recover
 	*myOp = oldOp

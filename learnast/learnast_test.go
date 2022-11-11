@@ -7,14 +7,14 @@ import (
 
 func testLearnASTCommon(t *testing.T, sql string) {
 	if err := testsqls.InitTableCOMPANY(""); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 
 	if err := testsqls.SQLExec(sql, ""); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 	if sql, err := learnAST(sql); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	} else {
 		t.Log(sql)
 	}
@@ -122,9 +122,3 @@ func TestLearnASTLIKE(t *testing.T) {
 func TestLearnASTRegExp(t *testing.T) {
 	testLearnASTCommon(t, testsqls.SQLRegExp);
 }
-
-//func TestLearnASTBug(t *testing.T) {
-//	testLearnASTCommon(t, "select * from COMPANY where 9223372036854775807 + 1 > 1;");
-//	testLearnASTCommon(t, "select 9223372036854775807 + 1");
-//	testLearnASTCommon(t, "select exists (select * from COMPANY WHERE ID = 0)");
-//}

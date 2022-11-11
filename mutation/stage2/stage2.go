@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -13,10 +13,10 @@ func CalCandidates(sql string) (*MutateVisitor, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return nil, errors.New("CalCandidates: " + err.Error())
+		return nil, errors.Wrap(err, "[CalCandidates]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return nil, errors.New("CalCandidates: stmtNodes == nil || len(stmtNodes) == 0")
+		return nil, errors.New("[CalCandidates]stmtNodes == nil || len(stmtNodes) == 0")
 	}
 	rootNode := &stmtNodes[0]
 	v := &MutateVisitor{
@@ -69,7 +69,7 @@ func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) (string, er
 		sql, err = doRdMRegExpL(rootNode, candidate.Node, seed)
 	}
 	if err != nil {
-		return "", errors.New("ImpoMutate: " +  err.Error())
+		return "", err
 	}
 	return string(sql), nil
 }
@@ -79,7 +79,7 @@ func ImpoMutateAndExec(rootNode ast.Node, candidate *Candidate, seed int64,
 	conn connector.Connector) (string, *connector.Result, error) {
 	sql, err := ImpoMutate(rootNode, candidate, seed)
 	if err != nil {
-		return "", nil, errors.New("ImpoMutateAndExec: " + err.Error())
+		return "", nil, err
 	}
 	result := conn.ExecSQL(sql)
 	return sql, result, nil

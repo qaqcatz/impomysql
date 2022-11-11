@@ -1,12 +1,13 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"reflect"
 )
+
 // addFixMWhere0L: FixMWhere0L: *ast.SelectStmt: WHERE xxx -> WHERE 0
 func (v *MutateVisitor) addFixMWhere0L(in *ast.SelectStmt, flag int) {
 	if in.Where != nil {
@@ -21,7 +22,7 @@ func doFixMWhere0L(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		sel := in.(*ast.SelectStmt)
 		// check
 		if sel.Where == nil {
-			return nil, errors.New("FixMWhere0L: sel.Where == nil")
+			return nil, errors.New("[FixMWhere0L]sel.Where == nil")
 		}
 		// mutate
 		old := sel.Where
@@ -33,14 +34,14 @@ func doFixMWhere0L(rootNode ast.Node, in ast.Node) ([]byte, error) {
 
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("FixMWhere0L: " +  err.Error())
+			return nil, errors.Wrap(err, "[FixMWhere0L]restore error")
 		}
 		// recover
 		sel.Where = old
 		return sql, nil
 	case nil:
-		return nil, errors.New("FixMWhere0L: type error: nil")
+		return nil, errors.New("[FixMWhere0L]type nil")
 	default:
-		return nil, errors.New("FixMWhere0L: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[FixMWhere0L]type default " + reflect.TypeOf(in).String())
 	}
 }

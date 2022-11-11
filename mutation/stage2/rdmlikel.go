@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -55,7 +55,7 @@ func doRdMLikeL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		// check
 		ck := checkRdMLikeL(like)
 		if ck != "" {
-			return nil, errors.New("doRdMLikeL: " + ck)
+			return nil, errors.New("[doRdMLikeL]check error " + ck)
 		}
 		// mutate
 		// '%' -> '_'
@@ -71,14 +71,14 @@ func doRdMLikeL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		}
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doRdMLikeL: " +  err.Error())
+			return nil, errors.Wrap(err, "[doRdMLikeL]restore error")
 		}
 		// recover
 		like.Pattern = oldPattern
 		return sql, nil
 	case nil:
-		return nil, errors.New("doRdMLikeL: type error: nil")
+		return nil, errors.New("[doRdMLikeL]type nil")
 	default:
-		return nil, errors.New("doRdMLikeL: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doRdMLikeL]type default " + reflect.TypeOf(in).String())
 	}
 }

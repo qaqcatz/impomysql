@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -44,7 +44,7 @@ func doRdMRegExpL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		// check
 		ck := checkRdMRegExpL(re)
 		if ck != "" {
-			return nil, errors.New("doRdMRegExpL: " + ck)
+			return nil, errors.New("[doRdMRegExpL]check error " + ck)
 		}
 		// mutate
 		// '*' -> '+'|'?'
@@ -64,14 +64,14 @@ func doRdMRegExpL(rootNode ast.Node, in ast.Node, seed int64) ([]byte, error) {
 		}
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doRdMRegExpL: " +  err.Error())
+			return nil, errors.Wrap(err, "[doRdMRegExpL]restore error")
 		}
 		// recover
 		re.Pattern = oldPattern
 		return sql, nil
 	case nil:
-		return nil, errors.New("doRdMRegExpL: type error: nil")
+		return nil, errors.New("[doRdMRegExpL]type nil")
 	default:
-		return nil, errors.New("doRdMRegExpL: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doRdMRegExpL]type default " + reflect.TypeOf(in).String())
 	}
 }

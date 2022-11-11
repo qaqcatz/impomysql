@@ -7,17 +7,17 @@ import (
 
 func testInitCommon(t *testing.T, sql string) {
 	if err := testsqls.InitTableCOMPANY(""); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 
 	if err := testsqls.SQLExec(sql, ""); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 	if initResult := Init(sql); initResult.Err != nil {
-		t.Fatal(initResult.Err.Error())
+		t.Fatalf("%+v", initResult.Err)
 	} else {
 		if err := testsqls.SQLExec(initResult.InitSql, ""); err != nil {
-			t.Fatal(err.Error())
+			t.Fatalf("%+v", err)
 		}
 	}
 }

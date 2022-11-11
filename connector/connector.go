@@ -1,8 +1,8 @@
 package connector
 
 import (
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -27,7 +27,7 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		username, password, host, port, "")
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
-		return nil, errors.New("NewConnector: create Connector error: " + err.Error())
+		return nil, errors.Wrap(err, "[NewConnector]open dsn error")
 	}
 	conn := &Connector{
 		DSN:             dsn,
@@ -42,92 +42,24 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		// CREATE DATABASE IF NOT EXISTS conn.DbName
 		result := conn.ExecSQL("CREATE DATABASE IF NOT EXISTS " + conn.DbName)
 		if result.Err != nil {
-			return nil, errors.New("NewConnector: create database if not exists error: " + result.Err.Error())
+			return nil, result.Err
 		}
 		// USE conn.DbName
 		result = conn.ExecSQL("USE " + conn.DbName)
 		if result.Err != nil {
-			return nil, errors.New("NewConnector: use database error: " + result.Err.Error())
+			return nil, result.Err
 		}
 	}
 	return conn, nil
 }
 
-// Result:
-//
-// query result, for example:
-//   +-----+------+------+
-//   | 1+2 | ID   | NAME | -> ColumnNames: 1+2,    ID,  NAME
-//   +-----+------+------+ -> ColumnTypes: BIGINT, INT, TEXT
-//   |   3 |    1 | H    | -> Rows[0]:     3,      1,   H
-//   |   3 |    2 | Z    | -> Rows[1]:     3,      2,   Z
-//   |   3 |    3 | Y    | -> Rows[2]:     3,      3,   Y
-//   +-----+------+------+
-// or error, for example:
-//  Err: ERROR 1054 (42S22): Unknown column 'T' in 'field list'
-//
-// note that:
-//
-// len(ColumnNames) = len(ColumnTypes) = len(Rows[i]);
-//
-// if the statement is not SELECT, then the ColumnNames, ColumnTypes and Rows are empty
-type Result struct {
-	ColumnNames []string
-	ColumnTypes []string
-	Rows [][]string
-	Err error
-	Time time.Duration // total time
-}
-
-func (result *Result) ToString() string {
-	str := ""
-	str += "ColumnName(ColumnType)s: "
-	for i, columnName := range result.ColumnNames {
-		str += " " + columnName + "(" + result.ColumnTypes[i] + ")"
-	}
-	str += "\n"
-	for i, row := range result.Rows {
-		str += "row " + strconv.Itoa(i) + ":"
-		for _, data := range row {
-			str += " " + data
-		}
-		str += "\n"
-	}
-	if result.Err != nil {
-		str += "Error: " + result.Err.Error() + "\n"
-	}
-	str += result.Time.String()
-	return str
-}
-
-// FlatRows: [["1","2"],["3","4"]] -> ["1,2", "3,4"]
-func (result *Result) FlatRows() []string {
-	flt := make([]string, 0)
-	for _, r := range result.Rows {
-		t := ""
-		for i, e := range r {
-			if i != 0 {
-				t += ","
-			}
-			t += e
-		}
-		flt = append(flt, t)
-	}
-	return flt
-}
-
-// IsEmpty: if the result is empty
-func (result *Result) IsEmpty() bool {
-	return len(result.ColumnNames) == 0
-}
-
-// ExecSQL: execute sql, return *Result.
+// Connector.ExecSQL: execute sql, return *Result.
 func (conn *Connector) ExecSQL(sql string) *Result {
 	startTime := time.Now()
 	rows, err := conn.db.Raw(sql).Rows()
 	if err != nil {
 		return &Result{
-			Err: errors.New("Connector.ExecSQL: execute error: " + err.Error()),
+			Err: errors.Wrap(err, "[Connector.ExecSQL]execute sql error"),
 		}
 	}
 	defer rows.Close()
@@ -142,7 +74,7 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 		columnTypes, err := rows.ColumnTypes()
 		if err != nil {
 			return &Result{
-				Err: errors.New("Connector.ExecSQL: get columns' type error: " + err.Error()),
+				Err: errors.Wrap(err, "[Connector.ExecSQL]get column type error"),
 			}
 		}
 		if len(result.ColumnNames) == 0 {
@@ -153,21 +85,21 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 		} else {
 			if len(columnTypes) != len(result.ColumnNames) {
 				return &Result{
-					Err: errors.New("Connector.ExecSQL: column mismatch: " +
-						"len(columnTypes) != len(result.ColumnNames)"),
+					Err: errors.New("[Connector.ExecSQL]|columnTypes|("+strconv.Itoa(len(columnTypes))+") != "+
+						"|columnNames|("+strconv.Itoa(len(result.ColumnNames))+")"),
 				}
 			}
 			for i, columnType := range columnTypes {
 				if columnType.Name() != result.ColumnNames[i] {
 					return &Result{
-						Err: errors.New("Connector.ExecSQL: column mismatch: " +
-							"columnType.Name() != result.ColumnNames[i]"),
+						Err: errors.New("[Connector.ExecSQL]columnType.Name()("+columnType.Name()+") != "+
+							"result.ColumnNames[i]("+result.ColumnNames[i]+")"),
 					}
 				}
 				if columnType.DatabaseTypeName() != result.ColumnTypes[i] {
 					return &Result{
-						Err: errors.New("Connector.ExecSQL: column mismatch: " +
-							"columnType.DatabaseTypeName() != result.ColumnTypes[i]"),
+						Err: errors.New("[Connector.ExecSQL]columnType.DatabaseTypeName()("+columnType.DatabaseTypeName()+") != "+
+							"result.ColumnTypes[i]("+result.ColumnTypes[i]+")"),
 					}
 				}
 			}
@@ -182,7 +114,7 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 		err = rows.Scan(dataI...)
 		if err != nil {
 			return &Result{
-				Err: errors.New("Connector.ExecSQL: scan row error: " + err.Error()),
+				Err: errors.Wrap(err, "[Connector.ExecSQL]scan rows error"),
 			}
 		}
 
@@ -199,7 +131,7 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 
 	if rows.Err() != nil {
 		return &Result{
-			Err: errors.New("Connector.ExecSQL: rows error: " + rows.Err().Error()),
+			Err: errors.Wrap(rows.Err(), "[Connector.ExecSQL]rows error"),
 		}
 	}
 
@@ -207,7 +139,7 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 	return result
 }
 
-// InitDBTEST:
+// Connector.InitDB:
 //   DROP DATABASE IF EXISTS Connector.DbName
 //   CREATE DATABASE Connector.DbName
 //   USE Connector.DbName

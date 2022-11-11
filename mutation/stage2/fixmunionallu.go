@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"reflect"
@@ -21,20 +21,20 @@ func doFixMUnionAllU(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		sel := in.(*ast.SelectStmt)
 		// check
 		if sel.AfterSetOperator == nil || *sel.AfterSetOperator != ast.Union {
-			return nil, errors.New("doFixMUnionAllU: sel.AfterSetOperator == nil || *sel.AfterSetOperator != ast.Union")
+			return nil, errors.New("[doFixMUnionAllU]sel.AfterSetOperator == nil || *sel.AfterSetOperator != ast.Union")
 		}
 		// mutate
 		*sel.AfterSetOperator = ast.UnionAll
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doFixMUnionAllU: " +  err.Error())
+			return nil, errors.Wrap(err, "[doFixMUnionAllU]restore error")
 		}
 		// recover
 		*sel.AfterSetOperator = ast.Union
 		return sql, nil
 	case nil:
-		return nil, errors.New("doFixMUnionAllU: type error: nil")
+		return nil, errors.New("[doFixMUnionAllU]type nil")
 	default:
-		return nil, errors.New("doFixMUnionAllU: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doFixMUnionAllU]type default " + reflect.TypeOf(in).String())
 	}
 }

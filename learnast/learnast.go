@@ -2,7 +2,7 @@ package learnast
 
 import (
 	"bytes"
-	"errors"
+	"github.com/pkg/errors"
 	"fmt"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
@@ -256,10 +256,10 @@ func learnAST(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "[learnAST]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("stmtNodes == nil || len(stmtNodes) == 0")
+		return "", errors.New("[learnAST]stmtNodes == nil || len(stmtNodes) == 0")
 	}
 	rootNode := &stmtNodes[0]
 	v := &learnASTVisitor{depth: 0}
@@ -268,7 +268,7 @@ func learnAST(sql string) (string, error) {
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err = (*rootNode).Restore(ctx)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "[learnAST]restore error")
 	}
 	return buf.String(), nil
 }

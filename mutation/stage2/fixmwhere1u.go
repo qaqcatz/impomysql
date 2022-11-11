@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -22,7 +22,7 @@ func doFixMWhere1U(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		sel := in.(*ast.SelectStmt)
 		// check
 		if sel.Where == nil {
-			return nil, errors.New("FixMWhere1U: sel.Where == nil")
+			return nil, errors.New("[FixMWhere1U]sel.Where == nil")
 		}
 		// mutate
 		old := sel.Where
@@ -34,14 +34,14 @@ func doFixMWhere1U(rootNode ast.Node, in ast.Node) ([]byte, error) {
 
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("FixMWhere1U: " +  err.Error())
+			return nil, errors.Wrap(err, "[FixMWhere1U]restore error")
 		}
 		// recover
 		sel.Where = old
 		return sql, nil
 	case nil:
-		return nil, errors.New("FixMWhere1U: type error: nil")
+		return nil, errors.New("[FixMWhere1U]type nil")
 	default:
-		return nil, errors.New("FixMWhere1U: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[FixMWhere1U]type default " + reflect.TypeOf(in).String())
 	}
 }

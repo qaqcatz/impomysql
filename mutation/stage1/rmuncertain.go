@@ -1,6 +1,6 @@
 package stage1
 
-// todo
+// todo: remove uncertain functions
 
 // uncertain functions:
 //  rand

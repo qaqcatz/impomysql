@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
@@ -22,7 +22,7 @@ func doFixMInNullU(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		pin := in.(*ast.PatternInExpr)
 		// check
 		if pin.Sel != nil || pin.List == nil {
-			return nil, errors.New("doFixMInNullU: pin.Sel != nil || pin.List == nil")
+			return nil, errors.New("[doFixMInNullU]pin.Sel != nil || pin.List == nil")
 		}
 		// mutate
 		oldList := pin.List
@@ -37,14 +37,14 @@ func doFixMInNullU(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		pin.List = newList
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doFixMInNullU: " +  err.Error())
+			return nil, errors.Wrap(err, "[doFixMInNullU]restore error")
 		}
 		// recover
 		pin.List = oldList
 		return sql, nil
 	case nil:
-		return nil, errors.New("doFixMInNullU: type error: nil")
+		return nil, errors.New("[doFixMInNullU]type nil")
 	default:
-		return nil, errors.New("doFixMInNullU: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doFixMInNullU]type default " + reflect.TypeOf(in).String())
 	}
 }

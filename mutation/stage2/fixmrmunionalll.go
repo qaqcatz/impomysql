@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pingcap/tidb/parser/ast"
 	"reflect"
@@ -25,7 +25,7 @@ func doFixMRmUnionAllL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		lst := in.(*ast.SetOprSelectList)
 		// check
 		if lst.Selects == nil || len(lst.Selects) <= 1 {
-			return nil, errors.New("doFixMRmUnionAllL: lst.Selects == nil || len(lst.Selects) <= 1")
+			return nil, errors.New("[doFixMRmUnionAllL]lst.Selects == nil || len(lst.Selects) <= 1")
 		}
 		// mutate
 		oldSels := lst.Selects
@@ -34,14 +34,14 @@ func doFixMRmUnionAllL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		lst.Selects = newSels
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doFixMRmUnionAllL: " +  err.Error())
+			return nil, errors.Wrap(err, "[doFixMRmUnionAllL]restore error")
 		}
 		// recover
 		lst.Selects = oldSels
 		return sql, nil
 	case nil:
-		return nil, errors.New("doFixMRmUnionAllL: type error: nil")
+		return nil, errors.New("[doFixMRmUnionAllL]type nil")
 	default:
-		return nil, errors.New("doFixMRmUnionAllL: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doFixMRmUnionAllL]type default " + reflect.TypeOf(in).String())
 	}
 }

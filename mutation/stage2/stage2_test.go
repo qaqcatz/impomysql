@@ -13,26 +13,26 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 	fmt.Println("==================================================")
 	// prepare table COMPANY
 	if err := testsqls.InitTableCOMPANY(""); err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 	// prepare connector
 	conn, err := testsqls.GetConnector("")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 
 	// execute original sql
 	t.Log("[origin]", sql)
 	originResult := conn.ExecSQL(sql)
 	if originResult.Err != nil {
-		t.Fatal(originResult.Err.Error())
+		t.Fatalf("%+v", originResult.Err)
 	}
 	t.Log("[origin result]", originResult.ToString())
 
 	// calculate candidates
 	v, err := CalCandidates(sql)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatalf("%+v", err)
 	}
 	root := v.Root
 
@@ -55,14 +55,14 @@ func testImpoMutateCommon(t *testing.T, sql string, seed int64) {
 			// do!
 			newSql, err := ImpoMutate(root, point, seed)
 			if err != nil {
-				t.Fatal(err.Error())
+				t.Fatalf("%+v", err)
 			}
 
 			// execute new sql
-			t.Log("[newSql]", string(newSql))
-			result := conn.ExecSQL(string(newSql))
+			t.Log("[newSql]", newSql)
+			result := conn.ExecSQL(newSql)
 			if result.Err != nil {
-				t.Fatal(result.Err.Error())
+				t.Fatalf("%+v", result.Err)
 			}
 			t.Log("[new result]", result.ToString())
 

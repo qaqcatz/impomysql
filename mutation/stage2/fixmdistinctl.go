@@ -1,7 +1,7 @@
 package stage2
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pingcap/tidb/parser/ast"
 	"reflect"
@@ -24,20 +24,20 @@ func doFixMDistinctL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		sel := in.(*ast.SelectStmt)
 		// check
 		if sel.Distinct != false {
-			return nil, errors.New("doFixMDistinctL: in.Distinct != false")
+			return nil, errors.New("[doFixMDistinctL]in.Distinct != false")
 		}
 		// mutate
 		sel.Distinct = true
 		sql, err := restore(rootNode)
 		if err != nil {
-			return nil, errors.New("doFixMDistinctL: " +  err.Error())
+			return nil, errors.Wrap(err, "[doFixMDistinctL]restore error")
 		}
 		// recover
 		sel.Distinct = false
 		return sql, nil
 	case nil:
-		return nil, errors.New("doFixMDistinctU: type error: nil")
+		return nil, errors.New("[doFixMDistinctL]type nil")
 	default:
-		return nil, errors.New("doFixMDistinctL: type error: " + reflect.TypeOf(in).String())
+		return nil, errors.New("[doFixMDistinctL]type default " + reflect.TypeOf(in).String())
 	}
 }

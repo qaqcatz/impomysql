@@ -2,7 +2,7 @@ package stage1
 
 import (
 	"bytes"
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
@@ -33,11 +33,11 @@ func Init(sql string) *InitResult {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		initResult.Err = err
+		initResult.Err = errors.Wrap(err, "[Init]parse error")
 		return initResult
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		initResult.Err = errors.New("Init: stmtNodes == nil || len(stmtNodes) == 0 ")
+		initResult.Err = errors.New("[Init]stmtNodes == nil || len(stmtNodes) == 0 ")
 		return initResult
 	}
 	rootNode := &stmtNodes[0]
@@ -46,7 +46,7 @@ func Init(sql string) *InitResult {
 	case *ast.SelectStmt:
 	case *ast.SetOprStmt:
 	default:
-		initResult.Err = errors.New("Init: *rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
+		initResult.Err = errors.New("[Init]*rootNode is not *ast.SelectStmt or *ast.SetOprStmt")
 		return initResult
 	}
 
@@ -57,7 +57,7 @@ func Init(sql string) *InitResult {
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err = (*rootNode).Restore(ctx)
 	if err != nil {
-		initResult.Err = err
+		initResult.Err = errors.Wrap(err, "[Init]restore error")
 		return initResult
 	}
 	initResult.InitSql = buf.String()
