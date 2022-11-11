@@ -1,4 +1,4 @@
-package main
+package task
 
 import (
 	"encoding/json"
@@ -18,22 +18,33 @@ import (
 )
 
 type TaskConfig struct {
-	OutputPath      string `json:"outputPath"` // default: ./output
-	DBMS            string `json:"dbms"`       // default: mysql
-	TaskId          int    `json:"taskId"`     // must >= 0, the final output path: OutputPath / DBMS / TaskId
-	Host            string `json:"host"`
-	Port            int    `json:"port"`
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	DbName          string `json:"dbname"`
-	MysqlClientPath string `json:"mysqlClientPath"` // default: /usr/bin/mysql
-	DDLPath         string `json:"ddlPath"`         // can not have ';' in comment
-	DMLPath         string `json:"dmlPath"`         // can not hava ';' in comment
-	Seed            int64  `json:"seed"`            // <= 0: current time
+	OutputPath    string `json:"outputPath"`   // default: ./output
+	DBMS          string `json:"dbms"`         // default: mysql
+	TaskId        int    `json:"taskId"`       // >= 0
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	DbName        string `json:"dbname"`
+	DDLPath       string `json:"ddlPath"`       // ddl.sql, can not have ';' in comment
+	DMLPath       string `json:"dmlPath"`       // dml.sql, can not hava ';' in comment
+	Seed          int64  `json:"seed"`          // <= 0: current time
 }
 
 func (taskConfig *TaskConfig) GetOutputPath() string {
 	return path.Join(taskConfig.OutputPath, taskConfig.DBMS, "task-"+strconv.Itoa(taskConfig.TaskId))
+}
+
+// GetLogsPath:
+//   path.Join(taskConfig.OutputPath, taskConfig.DBMS, "logs", "task-"+strconv.Itoa(taskConfig.TaskId))
+func (taskConfig *TaskConfig) GetLogsPath() string {
+	return path.Join(taskConfig.OutputPath, taskConfig.DBMS, "logs", "task-"+strconv.Itoa(taskConfig.TaskId))
+}
+
+// GetBugsPath:
+//   path.Join(taskConfig.OutputPath, taskConfig.DBMS, "bugs", "task-"+strconv.Itoa(taskConfig.TaskId))
+func (taskConfig *TaskConfig) GetBugsPath() string {
+	return path.Join(taskConfig.OutputPath, taskConfig.DBMS, "bugs", "task-"+strconv.Itoa(taskConfig.TaskId))
 }
 
 // taskInputCheck: check input, assign default value
