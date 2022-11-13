@@ -1,11 +1,10 @@
 package connector
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"strconv"
 	"time"
 )
@@ -18,14 +17,14 @@ type Connector struct {
 	Username        string
 	Password        string
 	DbName          string
-	db              *gorm.DB
+	db              *sql.DB
 }
 
 // NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname + USE dbname when dbname != ""
 func NewConnector(host string, port int, username string, password string, dbname string) (*Connector, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
 		username, password, host, port, "")
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "[NewConnector]open dsn error")
 	}
@@ -56,7 +55,7 @@ func NewConnector(host string, port int, username string, password string, dbnam
 // Connector.ExecSQL: execute sql, return *Result.
 func (conn *Connector) ExecSQL(sql string) *Result {
 	startTime := time.Now()
-	rows, err := conn.db.Raw(sql).Rows()
+	rows, err := conn.db.Query(sql)
 	if err != nil {
 		return &Result{
 			Err: errors.Wrap(err, "[Connector.ExecSQL]execute sql error"),
@@ -157,4 +156,8 @@ func (conn *Connector) InitDB() error {
 		return result.Err
 	}
 	return nil
+}
+
+func (conn *Connector) Close() {
+	_ = conn.db.Close()
 }

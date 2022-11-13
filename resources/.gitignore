@@ -1,5 +1,6 @@
 go-randgen
 taskconfig.json
+taskrdgenconfig.json
 taskpoolconfig.json
 test.data.sql
 test.rand.sql

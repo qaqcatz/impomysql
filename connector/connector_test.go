@@ -64,4 +64,11 @@ func TestConnector_ExecSQL(t *testing.T) {
 	} else {
 		t.Fatal("must error!")
 	}
+
+	errCode, err := result.GetErrorCode()
+	if err == nil {
+		t.Log("error code = " ,errCode)
+	} else {
+		t.Fatalf("%+v", err)
+	}
 }

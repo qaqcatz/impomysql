@@ -1,6 +1,9 @@
 package connector
 
 import (
+	"github.com/pkg/errors"
+	"github.com/go-sql-driver/mysql"
+	"reflect"
 	"strconv"
 	"time"
 )
@@ -48,11 +51,12 @@ func (result *Result) ToString() string {
 	if result.Err != nil {
 		str += "Error: " + result.Err.Error() + "\n"
 	}
+
 	str += result.Time.String()
 	return str
 }
 
-// FlatRows: [["1","2"],["3","4"]] -> ["1,2", "3,4"]
+// Result.FlatRows: [["1","2"],["3","4"]] -> ["1,2", "3,4"]
 func (result *Result) FlatRows() []string {
 	flt := make([]string, 0)
 	for _, r := range result.Rows {
@@ -68,7 +72,19 @@ func (result *Result) FlatRows() []string {
 	return flt
 }
 
-// IsEmpty: if the result is empty
+// Result.IsEmpty: if the result is empty
 func (result *Result) IsEmpty() bool {
 	return len(result.ColumnNames) == 0
+}
+
+func (result *Result) GetErrorCode() (int, error) {
+	if result.Err == nil {
+		return -1, errors.New("[Result.GetErrorCode]result.Err == nil")
+	}
+	rootCause := errors.Cause(result.Err)
+	if driverErr, ok := rootCause.(*mysql.MySQLError); ok { // Now the error number is accessible directly
+		return int(driverErr.Number), nil
+	} else {
+		return -1, errors.New("[Result.GetErrorCode]not *mysql.MySQLError " + reflect.TypeOf(rootCause).String())
+	}
 }

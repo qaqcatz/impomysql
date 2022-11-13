@@ -2,9 +2,8 @@ package task
 
 import (
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
-	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -12,96 +11,148 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
 type TaskPoolConfig struct {
-	OutputPath      string `json:"outputPath"` // default: ./output
-	DBMS            string `json:"dbms"`       // default: mysql
-	Host            string `json:"host"`
-	Port            int    `json:"port"`
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	DbPrefix        string `json:"dbPrefix"`
-	GoRandGenPath   string `json:"goRandGenPath"`
-	ZZPath          string `json:"zzPath"`
-	YYPath          string `json:"yyPath"`
-	QueriesNum      int    `json:"queriesNum"`
-	Seed            int64  `json:"seed"` // <= 0: current time
-	ThreadNum       int    `json:"threadNum"` // default: 16
-	MaxTasks        int    `json:"maxTasks"`  // <= 0: no limit
-	MaxTimeS        int    `json:"maxTimeS"`  // <= 0: no limit
+	OutputPath  string `json:"outputPath"` // default: ./output
+	DBMS        string `json:"dbms"`       // default: mysql
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	DbPrefix    string `json:"dbPrefix"`
+	Seed        int64  `json:"seed"` // <= 0: current time
+	RandGenPath string `json:"randGenPath"`
+	ZZPath      string `json:"zzPath"`
+	YYPath      string `json:"yyPath"`
+	QueriesNum  int    `json:"queriesNum"`
+	ThreadNum   int    `json:"threadNum"`
+	MaxTasks    int    `json:"maxTasks"` // <= 0: no limit
+	MaxTimeS    int    `json:"maxTimeS"` // <= 0: no limit
 }
 
-// TaskPoolInputCheck: check input, assign default value
-func TaskPoolInputCheck(config *TaskPoolConfig) error {
+// TaskPoolConfig.GetTaskPoolPath:
+//   path.Join(taskPoolConfig.OutputPath, taskPoolConfig.DBMS)
+func (taskPoolConfig *TaskPoolConfig) GetTaskPoolPath() string {
+	return path.Join(taskPoolConfig.OutputPath, taskPoolConfig.DBMS)
+}
+
+func NewTaskPoolConfig(configJsonPath string) (*TaskPoolConfig, error) {
+	configData, err := ioutil.ReadFile(configJsonPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "[NewTaskPoolConfig]read task config error")
+	}
+	var configT TaskPoolConfig
+	err = json.Unmarshal(configData, &configT)
+	if err != nil {
+		return nil, errors.Wrap(err, "[NewTaskPoolConfig]unmarshal task config error")
+	}
+	config := &configT
+	return InitTaskPoolConfig(config)
+}
+
+// InitTaskPoolConfig: check input, assign default value, convert path to abs, create config
+func InitTaskPoolConfig(config *TaskPoolConfig) (*TaskPoolConfig, error) {
 	if config.OutputPath == "" {
-		config.OutputPath = "./output"
+		p, err := filepath.Abs("./output")
+		if err != nil {
+			return nil, errors.Wrap(err, "[InitTaskPoolConfig]path abs error")
+		}
+		config.OutputPath = p
+	} else {
+		p, err := filepath.Abs(config.OutputPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "[InitTaskPoolConfig]path abs error")
+		}
+		config.OutputPath = p
 	}
 	if config.DBMS == "" {
 		config.DBMS = "mysql"
 	}
-	if config.GoRandGenPath == "" {
-		return errors.New("TaskPoolInputCheck: empty goRandGenPath")
-	}
-	if config.ZZPath == "" {
-		return errors.New("TaskPoolInputCheck: empty zzPath")
-	}
-	if config.YYPath == "" {
-		return errors.New("TaskPoolInputCheck: empty yyPath")
-	}
-	if config.QueriesNum <= 0 {
-		return errors.New("TaskPoolInputCheck: queriesNum <= 0")
-	}
 	if config.Seed <= 0 {
 		config.Seed = time.Now().UnixNano()
 	}
+	if config.RandGenPath == "" {
+		return nil, errors.New("[InitTaskPoolConfig]empty randGenPath")
+	}
+	if config.ZZPath == "" {
+		return nil, errors.New("[InitTaskPoolConfig]empty zzPath")
+	}
+	if config.YYPath == "" {
+		return nil, errors.New("[InitTaskPoolConfig]empty yyPath")
+	}
+	if config.QueriesNum <= 0 {
+		return nil, errors.New("[InitTaskPoolConfig]queriesNum <= 0")
+	}
 	if config.ThreadNum <= 0 {
-		return errors.New("TaskPoolInputCheck: threadNum <= 0")
+		return nil, errors.New("[InitTaskPoolConfig]threadNum <= 0")
+	}
+	return config, nil
+}
+
+type TaskPoolResult struct {
+	lock              sync.Mutex
+	StartTime         string `json:"startTime"`
+	TotalTaskNum      int    `json:"totalTaskNum"`
+	FinishedTaskNum   int    `json:"finishedTaskNum"`
+	ErrorTaskNum      int    `json:"errorTaskNum"`
+	ErrorTaskIds      []int  `json:"errorTaskIds"`
+	Stage1WarnNum     int    `json:"stage1WarnNum"`
+	Stage1WarnTaskIds []int  `json:"stage1WarnTaskIds"`
+	Stage2WarnNum     int    `json:"stage2WarnNum"`
+	Stage2WarnTaskIds []int  `json:"stage2WarnTaskIds"`
+	BugsNum           int    `json:"bugsNum"`
+	BugTaskIds        []int  `json:"bugTaskIds"`
+	EndTime           string `json:"endTime"`
+}
+
+// TaskPoolResult.SaveTaskPoolResult: output to taskPoolPath/result.json
+func (taskPoolResult *TaskPoolResult) SaveTaskPoolResult(taskPoolPath string) error {
+	taskPoolResult.lock.Lock()
+	defer taskPoolResult.lock.Unlock()
+	jsonPath := path.Join(taskPoolPath, "result.json")
+	jsonData, err := json.Marshal(taskPoolResult)
+	if err != nil {
+		return errors.Wrap(err, "[TaskPoolResult.SaveTaskPoolResult]marshal error")
+	}
+	err = ioutil.WriteFile(jsonPath, jsonData, 0777)
+	if err != nil {
+		return errors.Wrap(err, "[TaskPoolResult.SaveTaskPoolResult]write json error")
 	}
 	return nil
 }
 
-func (taskPoolConfig *TaskPoolConfig) GetOutputPath() string {
-	return path.Join(taskPoolConfig.OutputPath, taskPoolConfig.DBMS)
-}
-
 // RunTaskPool:
 //
-// 0. check input
-//
 // 1. init
-//   1.1 init OutputPath/DBMS
-//   1.2 init logger, write to OutputPath/DBMS/taskpool.log and os.Stdout
+//   1.1 init TaskPoolConfig.GetTaskPoolPath()
+//   1.2 create logger, write to TaskPoolConfig.GetTaskPoolPath()/taskpool.log and os.Stdout
 //   1.3 create thread pool with size ThreadNum, fill with *connector.Connector,
 //   the database name of each connector is config.DbPrefix + thread id
 // 2. run, use thread pool(with size ThreadNum) to continuously execute tasks.
-// Each thread can only perform one task at the same time. see PrepareAndRunTask
-func RunTaskPool(config *TaskPoolConfig) error {
-	// 0. check input
-	err := TaskPoolInputCheck(config)
-	if err != nil {
-		return errors.New("RunTaskPool: check input error: " + err.Error())
-	}
-
+// Each thread can only perform one task at the same time, see PrepareAndRunTask().
+// Save taskpool result.
+func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 	// 1. init
+	startTime := time.Now()
 	// **************************************************
-	// 1.1 init OutputPath/DBMS
-	outputPath := config.GetOutputPath()
-	_ = os.RemoveAll(outputPath)
-	_ = os.MkdirAll(outputPath, 0777)
-	// 1.2 init logger, write to OutputPath/DBMS/taskpool.log and os.Stdout
-	logPath := path.Join(outputPath, "taskpool.log")
+	// 1.1 init TaskPoolConfig.GetTaskPoolPath()
+	_ = os.RemoveAll(config.GetTaskPoolPath())
+	_ = os.MkdirAll(config.GetTaskPoolPath(), 0777)
+	// 1.2 create logger, write to TaskPoolConfig.GetTaskPoolPath()/taskpool.log and os.Stdout
+	loggerPath := path.Join(config.GetTaskPoolPath(), "taskpool.log")
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
 		DisableColors: true,
 		FullTimestamp: true,
 	})
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	file, err := os.OpenFile(loggerPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
 	if err != nil {
-		return errors.New("RunTaskPool: create logger error: " + err.Error())
+		return nil, errors.Wrap(err, "[RunTaskPool]create logger error")
 	}
+	defer file.Close()
 	writers := []io.Writer{
 		file,
 		os.Stdout,
@@ -114,10 +165,10 @@ func RunTaskPool(config *TaskPoolConfig) error {
 	threadPool := make(chan *connector.Connector, config.ThreadNum)
 	for i := 0; i < config.ThreadNum; i++ {
 		conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password,
-			config.DbPrefix + strconv.Itoa(i))
+			config.DbPrefix+strconv.Itoa(i))
 		if err != nil {
 			logger.Error("create connector error: " + err.Error())
-			return errors.New("RunTaskPool: create connector error: " + err.Error())
+			return nil, err
 		}
 		threadPool <- conn
 	}
@@ -125,17 +176,28 @@ func RunTaskPool(config *TaskPoolConfig) error {
 	// end 1
 
 	// 2. run, use thread pool(with size ThreadNum) to continuously execute tasks.
-	// Each thread can only perform one task at the same time. see PrepareAndRunTask
-	startTime := time.Now()
-	totalTaskNum := 0
-	var finTaskNum int32 = 0
-	var errTaskNum int32 = 0
+	// Each thread can only perform one task at the same time, see PrepareAndRunTask().
+	// Save taskpool result.
 	logger.Info("Running **************************************************")
+	taskPoolResult := &TaskPoolResult{
+		StartTime:         startTime.String(),
+		TotalTaskNum:      0,
+		FinishedTaskNum:   0,
+		ErrorTaskNum:      0,
+		ErrorTaskIds:      make([]int, 0),
+		Stage1WarnNum:     0,
+		Stage1WarnTaskIds: make([]int, 0),
+		Stage2WarnNum:     0,
+		Stage2WarnTaskIds: make([]int, 0),
+		BugsNum:           0,
+		BugTaskIds:        make([]int, 0),
+		EndTime:           "",
+	}
 	// **************************************************
 	for {
 
 		// wait for a free connector
-		conn := <- threadPool
+		conn := <-threadPool
 
 		// max time limit
 		if config.MaxTimeS > 0 && time.Since(startTime) >= time.Duration(config.MaxTimeS)*time.Second {
@@ -143,116 +205,104 @@ func RunTaskPool(config *TaskPoolConfig) error {
 			break
 		}
 		// max task limit
-		if config.MaxTimeS > 0 && atomic.LoadInt32(&finTaskNum) >= int32(config.MaxTasks) {
+		finishedTaskNum := 0
+		taskPoolResult.lock.Lock()
+		finishedTaskNum = taskPoolResult.FinishedTaskNum
+		taskPoolResult.lock.Unlock()
+		if config.MaxTasks > 0 && finishedTaskNum >= config.MaxTasks {
 			logger.Info("max tasks!")
 			break
 		}
 
 		// execute a new task
-		taskId := totalTaskNum
-		totalTaskNum += 1
-		go PrepareAndRunTask(conn, threadPool, &finTaskNum, &errTaskNum, taskId,
-			config, logger)
+		taskId := taskPoolResult.TotalTaskNum
+		taskPoolResult.TotalTaskNum += 1
+		go PrepareAndRunTask(config, logger, threadPool, conn, taskPoolResult, taskId)
+	}
+	// save taskpool result.
+	taskPoolResult.EndTime = time.Now().String()
+	err = taskPoolResult.SaveTaskPoolResult(config.GetTaskPoolPath())
+	if err != nil {
+		logger.Error("??????????????????????????????????????????????????")
+		logger.Error("[Save Result Error] ", err)
+		logger.Error("??????????????????????????????????????????????????")
 	}
 	// **************************************************
-	logger.Info("[total time] ", time.Since(startTime).String())
-	logger.Info("[total number of tasks] ", totalTaskNum)
-	logger.Info("[total number of finished tasks] ", finTaskNum)
-	logger.Info("[total number of error tasks] ", errTaskNum)
 	logger.Info("Finished **************************************************")
 	// end 2
-	return nil
+	return taskPoolResult, nil
 }
 
 // PrepareAndRunTask:
-//   1. create task config, create task dir, write task config into task dir
-//   2. go-randgen write output.data.sql + output.rand.sql into task dir
-//   3. run task
-func PrepareAndRunTask(conn *connector.Connector, threadPool chan *connector.Connector, finTaskNum *int32, errTaskNum *int32, taskId int,
-	config *TaskPoolConfig, logger *logrus.Logger) {
+//   1. create and save task config
+//   2. run task
+func PrepareAndRunTask(config *TaskPoolConfig, logger *logrus.Logger, threadPool chan *connector.Connector,
+	conn *connector.Connector, taskPoolResult *TaskPoolResult, taskId int) {
 
-	defer func () {
-		atomic.AddInt32(finTaskNum, 1)
+	defer func() {
+		taskPoolResult.lock.Lock()
+		taskPoolResult.FinishedTaskNum += 1
+		taskPoolResult.lock.Unlock()
 		threadPool <- conn
-	} ()
+	}()
 
 	logger.Info("Run task", taskId)
 
-	// 1. create task config, create task dir, write task config into task dir
+	// 1. create and save task config
 	taskConfig := &TaskConfig{
 		OutputPath: config.OutputPath,
-		DBMS: config.DBMS,
-		TaskId: taskId,
-		Host: config.Host,
-		Port: config.Port,
-		Username: config.Username,
-		Password: config.Password,
-		DbName: conn.DbName,
-		DDLPath: "",
-		DMLPath: "",
-		Seed: config.Seed + int64(taskId),
+		DBMS:       config.DBMS,
+		TaskId:     taskId,
+		Host:       conn.Host,
+		Port:       conn.Port,
+		Username:   conn.Username,
+		Password:   conn.Password,
+		DbName:     conn.DbName,
+		Seed:       config.Seed + int64(taskId),
+		RdGenPath:  config.RandGenPath,
+		ZZPath:     config.ZZPath,
+		YYPath:     config.YYPath,
+		QueriesNum: config.QueriesNum,
+		NeedDML:    false,
 	}
-	taskDir := taskConfig.GetOutputPath()
-	taskConfig.DDLPath = path.Join(taskDir, "output.data.sql")
-	taskConfig.DMLPath = path.Join(taskDir, "output.rand.sql")
+	taskConfig, err := InitTaskConfig(taskConfig)
+	if err != nil {
+		logger.Error("task", taskId, " init task config error: ", err)
+		return
+	}
+	err = taskConfig.SaveConfig(config.GetTaskPoolPath())
+	if err != nil {
+		logger.Error("task", taskId, " save task config error: ", err)
+		return
+	}
 
-	_ = os.MkdirAll(taskDir, 0777)
-
-	taskConfigJsonPath := path.Join(taskDir, "config.json")
-	taskConfigJsonData, err := json.Marshal(taskConfig)
+	// 2. run task
+	taskResult, err := RunTask(taskConfig, conn, logger)
 	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		logger.Error("task", taskId, " json marshal error: ", err)
-		return
-	}
-	err = ioutil.WriteFile(taskConfigJsonPath, taskConfigJsonData, 0777)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		logger.Error("task", taskId, " write config json error: ", err)
-		return
-	}
-	// 2. go-randgen output.data.sql + output.rand.sql
-	// cd taskDir && ./go-randgen gentest -Z zzPath -Y yyPath -Q queriesNum -B --seed seed
-	goRandGenAbsPath, err := filepath.Abs(config.GoRandGenPath)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		logger.Error("task", taskId, " get go-randgen abs path error: ", err)
-		return
-	}
-	zzAbsPath, err := filepath.Abs(config.ZZPath)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		logger.Error("task", taskId, " get zz abs path error: ", err)
-		return
-	}
-	yyAbsPath, err := filepath.Abs(config.YYPath)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		logger.Error("task", taskId, " get yy abs path error: ", err)
-		return
-	}
-	randGenCmd := "cd "+taskDir+" && "+goRandGenAbsPath+" gentest "+
-		" -Z "+zzAbsPath+" -Y "+yyAbsPath+
-		" -Q "+strconv.Itoa(config.QueriesNum)+" --seed "+strconv.FormatInt(taskConfig.Seed, 10)+
-		" -B "
-	logger.Info("task", taskId, " randgan cmd: ", randGenCmd)
-	_, errBuf, err := nanoshlib.Exec(randGenCmd, -1)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
-		errStr := ""
-		if errBuf != nil {
-			errStr = string(errBuf)
-		}
-		logger.Error("task", taskId, " randgen error: ", err, ": ", errStr)
-		return
-	}
-	// 3. run task
-	err = RunTask(taskConfig, conn)
-	if err != nil {
-		atomic.AddInt32(errTaskNum, 1)
+		taskPoolResult.lock.Lock()
+		taskPoolResult.ErrorTaskNum += 1
+		taskPoolResult.ErrorTaskIds = append(taskPoolResult.ErrorTaskIds, taskId)
+		taskPoolResult.lock.Unlock()
 		logger.Error("task", taskId, " run task error: ", err)
 		return
 	}
+	taskPoolResult.lock.Lock()
+	stage1WarnNum := taskResult.Stage1ExecErrNum-taskResult.Stage1IgExecErrNum
+	if stage1WarnNum > 0 {
+		taskPoolResult.Stage1WarnNum += stage1WarnNum
+		taskPoolResult.Stage1WarnTaskIds = append(taskPoolResult.Stage1WarnTaskIds, taskId)
+	}
+	stage2WarnNum := taskResult.Stage2UnitExecErrNum-taskResult.Stage2IgUnitExecErrNum
+	if stage2WarnNum > 0 {
+		taskPoolResult.Stage2WarnNum += stage2WarnNum
+		taskPoolResult.Stage2WarnTaskIds = append(taskPoolResult.Stage2WarnTaskIds, taskId)
+	}
+	bugsNum := taskResult.ImpoBugsNum
+	if bugsNum > 0 {
+		taskPoolResult.BugsNum += bugsNum
+		taskPoolResult.BugTaskIds = append(taskPoolResult.BugTaskIds, taskId)
+	}
+	taskPoolResult.lock.Unlock()
 
 	logger.Info("task", taskId, " Finished")
 }

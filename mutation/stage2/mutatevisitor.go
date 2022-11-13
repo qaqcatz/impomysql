@@ -2,6 +2,7 @@ package stage2
 
 import (
 	"bytes"
+	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/opcode"
@@ -589,7 +590,7 @@ func restore(rootNode ast.Node) ([]byte, error) {
 	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
 	err := rootNode.Restore(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "restore error")
 	}
 	return buf.Bytes(), nil
 }
