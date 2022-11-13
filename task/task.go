@@ -354,17 +354,11 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		// handle stage1 execute error
 		if stage1Result.ExecResult.Err != nil {
 			taskResult.Stage1ExecErrNum += 1
-			errCode, err := stage1Result.ExecResult.GetErrorCode()
-			if err == nil {
-				if _, ok := IgnoreErrors[errCode]; ok {
-					taskResult.Stage1IgExecErrNum += 1
-					continue
-				}
-			}
-			logger.Error("==================================================")
-			logger.Error("[Stage1 Exec Error]", "(", dmlSql.Id, ")", stage1Result.InitSql)
-			logger.Error(stage1Result.ExecResult.Err)
-			logger.Error("==================================================")
+			taskResult.Stage1IgExecErrNum += 1 // ignore all errors of stage1
+			//logger.Error("==================================================")
+			//logger.Error("[Stage1 Exec Error]", "(", dmlSql.Id, ")", stage1Result.InitSql)
+			//logger.Error(stage1Result.ExecResult.Err)
+			//logger.Error("==================================================")
 			continue
 		}
 
@@ -397,12 +391,9 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 			// handle stage2 unit exec error
 			if mutateUnit.ExecResult.Err != nil {
 				taskResult.Stage2UnitExecErrNum += 1
-				errCode, err := mutateUnit.ExecResult.GetErrorCode()
-				if err == nil {
-					if _, ok := IgnoreErrors[errCode]; ok {
-						taskResult.Stage2IgUnitExecErrNum += 1
-						continue
-					}
+				if IgnoreError(mutateUnit.Name, mutateUnit.ExecResult) {
+					taskResult.Stage2IgUnitExecErrNum += 1
+					continue
 				}
 				logger.Error("==================================================")
 				logger.Error("[Stage2 Unit Exec Error]", "(", dmlSql.Id, "-", mutateUnit.Name, ")", mutateUnit.Sql)
