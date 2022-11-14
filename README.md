@@ -193,7 +193,7 @@ We will save logical bugs in `bugs`. For each bug, we will create two files: bug
 * bug-`bugId`-`sqlId`-`mutationName`.json: json format of bug-`bugId`-`sqlId`-`mutationName` exclude execution result. For example:
 
   ```json
-  You can get the taskpool's start time(startTime), end time(endTime), the number of logical bugs we detected(bugsNum) and their taskId(bugTaskIds),  {
+  {
     "reportTime": "2022-11-13 23:26:33.51294115 +0800 CST m=+0.200207850",
     "bugId": 0,
     "sqlId": 0,
