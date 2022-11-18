@@ -400,3 +400,53 @@ In `${IMPOHOME}/output/mysql`, you will not only see the task directories, but a
   
   This file is used for debugging, from which you can get the taskpool's start time(`startTime`), end time(`endTime`), the number of logical bugs we detected(`bugsNum`) and their taskId(`bugTaskIds`).
 
+#### test dbms
+
+We provide default configuration files for mysql, mariadb, tidb, oceanbase, you can follow these configuration files to test your own database.
+
+1. mysql
+
+   ```shell
+   # sudo docker run -itd --name mysqltest -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30
+   # see https://hub.docker.com/_/mysql/tags
+   # or build it yourself
+   # see https://github.com/mysql/mysql-server
+   ./impomysql taskpool ./resources/testmysql.json
+   ```
+
+2. mariadb
+
+   ```shell
+   # sudo docker run -itd --name mariadbtest -p 23306:3306 -e MYSQL_ROOT_PASSWORD=123456 --privileged=true mariadb:10.11.1-rc
+   # see https://hub.docker.com/_/mariadb/tags
+   # or build it yourself
+   # see https://github.com/MariaDB/server
+   ./impomysql taskpool ./resources/testmariadb.json
+   ```
+
+3. tidb
+
+   ```shell
+   # sudo docker run -itd --name tidbtest -p 4000:4000 pingcap/tidb:v6.4.0
+   # mysql -h 127.0.0.1 -P 4000 -u root
+   # SET PASSWORD = '123456';
+   # see https://hub.docker.com/r/pingcap/tidb/tags
+   # or build it yourself
+   # see https://github.com/pingcap/tidb
+   ./impomysql taskpool ./resources/testtidb.json
+   ```
+
+4. oceanbase
+
+   ```shell
+   # sudo docker run -itd --name oceanbasetest -p 2881:2881 oceanbase/oceanbase-ce:4.0.0.0
+   # mysql -h 127.0.0.1 -P 2881 -u root
+   # SET PASSWORD = PASSWORD('123456');
+   # see https://hub.docker.com/r/oceanbase/oceanbase-ce/tags
+   # or build it yourself
+   # see https://github.com/oceanbase/oceanbase
+   ./impomysql taskpool ./resources/testoceanbase.json
+   ```
+
+   
+
