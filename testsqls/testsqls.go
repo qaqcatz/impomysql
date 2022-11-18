@@ -17,13 +17,9 @@ const (
 	TiDB = "tidb"
 	OceanBase = "oceanbase"
 
-	mySQLPort = 13306 // docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql
-	mariaDBPort = 23306 // docker run --name mariadbtest -e MYSQL_ROOT_PASSWORD=123456 -p 23306:3306 -d docker.io/library/mariadb
-	// docker run --name tidb-server -d -p 4000:4000 pingcap/tidb:latest
-	// SET PASSWORD = '123456'
+	mySQLPort = 13306
+	mariaDBPort = 23306
 	tiDBPort = 4000
-	// docker run -p 2881:2881 --name obstandalone -d oceanbase/oceanbase-ce
-	// SET PASSWORD = PASSWORD('123456');
 	oceanBasePort = 2881
 )
 
