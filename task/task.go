@@ -170,12 +170,10 @@ type TaskResult struct {
 	EndInitTime            string `json:"endInitTime"`
 	Stage1ErrNum           int    `json:"stage1ErrNum"`
 	Stage1ExecErrNum       int    `json:"stage1ExecErrNum"`
-	Stage1IgExecErrNum     int    `json:"stage1IgExecErrNum"`
 	Stage2ErrNum           int    `json:"stage2ErrNum"`
 	Stage2UnitNum          int    `json:"stage2UnitNum"`
 	Stage2UnitErrNum       int    `json:"stage2UnitErrNum"`
 	Stage2UnitExecErrNum   int    `json:"stage2UnitExecErrNum"`
-	Stage2IgUnitExecErrNum int    `json:"stage2IgUnitExecErrNum"`
 	ImpoBugsNum            int    `json:"impoBugsNum"`
 	SaveBugErrNum          int    `json:"saveBugErrNum"`
 	EndTime                string `json:"endTime"`
@@ -316,12 +314,10 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		EndInitTime:            endInitTime,
 		Stage1ErrNum:           0,
 		Stage1ExecErrNum:       0,
-		Stage1IgExecErrNum:     0,
 		Stage2ErrNum:           0,
 		Stage2UnitNum:          0,
 		Stage2UnitErrNum:       0,
 		Stage2UnitExecErrNum:   0,
-		Stage2IgUnitExecErrNum: 0,
 		ImpoBugsNum:            0,
 		SaveBugErrNum:          0,
 		EndTime:                "",
@@ -354,7 +350,6 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		// handle stage1 execute error
 		if stage1Result.ExecResult.Err != nil {
 			taskResult.Stage1ExecErrNum += 1
-			taskResult.Stage1IgExecErrNum += 1 // ignore all errors of stage1
 			//logger.Error("==================================================")
 			//logger.Error("[Stage1 Exec Error]", "(", dmlSql.Id, ")", stage1Result.InitSql)
 			//logger.Error(stage1Result.ExecResult.Err)
@@ -391,14 +386,10 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 			// handle stage2 unit exec error
 			if mutateUnit.ExecResult.Err != nil {
 				taskResult.Stage2UnitExecErrNum += 1
-				if IgnoreError(mutateUnit.Name, mutateUnit.ExecResult) {
-					taskResult.Stage2IgUnitExecErrNum += 1
-					continue
-				}
-				logger.Error("==================================================")
-				logger.Error("[Stage2 Unit Exec Error]", "(", dmlSql.Id, "-", mutateUnit.Name, ")", mutateUnit.Sql)
-				logger.Error(mutateUnit.ExecResult.Err)
-				logger.Error("==================================================")
+				//logger.Error("==================================================")
+				//logger.Error("[Stage2 Unit Exec Error]", "(", dmlSql.Id, "-", mutateUnit.Name, ")", mutateUnit.Sql)
+				//logger.Error(mutateUnit.ExecResult.Err)
+				//logger.Error("==================================================")
 				continue
 			}
 

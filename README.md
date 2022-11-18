@@ -1,7 +1,5 @@
 # impomysql
 
-[![Go Reference](README.assets/impomysql.svg)](https://pkg.go.dev/github.com/qaqcatz/impomysql)
-
 Detecting Logic Bugs in mysql through Implication Oracle.
 
 Also supports DBMS compatible with mysql syntax, such as mariadb, tidb, oceanbase.
@@ -61,6 +59,15 @@ We will discuss these features in our paper:
 todo  
 ```
 
+You can also see the source code for more details:
+
+* mutation/doc.go
+
+* mutation/stage1/doc.go
+* mutation/stage2/doc.go
+* mutation/stage2/mutatevisitor.go
+* resources/impo.yy
+
 ## 3. How to use
 
 ### 3.1 build
@@ -68,7 +75,7 @@ todo
 It is recommended to use `golang 1.16.2`.
 
 ```shell
-git clone https://github.com/qaqcatz/impomysql.git
+git clone --depth=1 https://github.com/qaqcatz/impomysql.git
 cd impomysql
 go build
 ```
@@ -91,9 +98,18 @@ You can also compile and install the DBMS yourself.
 
 We treat DBMS testing as `task`.
 
-**(1) input**
+#### quick start
 
-you need to provide a configuration file. For example, you can create the following configuration file named `taskconfig.json` in `${IMPOHOME}/resources`:
+We assume you have executed `sudo docker run -itd --name mysqltest -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30`
+
+```shell
+cd ${IMPOHOME}
+./impomysql task ./resources/taskconfig.json
+```
+
+#### input
+
+You need to provide a configuration file. see `${IMPOHOME}/resources/raskconfig.json`:
 
 ```json
 {
@@ -117,7 +133,7 @@ you need to provide a configuration file. For example, you can create the follow
 
 * `seed`: random seed. If seed <= 0, we will use the current time.
 
-* `ddlPath`: sql file responsible for creating data. For example, you can create the following sql file named `ddl.sql` in `${IMPOHOME}/resources`:
+* `ddlPath`: sql file responsible for creating data. see `${IMPOHOME}/resources/ddl.sql`:
 
   ```sql
   create table t (c1 double);
@@ -126,7 +142,7 @@ you need to provide a configuration file. For example, you can create the follow
 
   We will init database according to `ddlPath`.
 
-* `dmlPath`: sql file responsible for querying data. For example, you can create the following sql file named `dml.sql` in `${IMPOHOME}/resources`:
+* `dmlPath`: sql file responsible for querying data. see `${IMPOHOME}/resources/dml.sql`:
 
   ```sql
   SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING f1 != 0;
@@ -139,24 +155,20 @@ you need to provide a configuration file. For example, you can create the follow
 Note that:
 
 * the paths in `taskconfig.json` are relative to `${IMPOHOME}`(for example, `./output` is actually `${IMPOHOME}/output`). You can also use absolute paths. Actually, we will automatically convert these paths to absolute paths before executing the `task`.
-* we only support `SELECT` statements in `dmlPath`.
+* we only focus on  `SELECT` statements in your `dmlPath`, which means we will ignore some of your sqls such as EXPLAIN, PREPARE.
+* It is recommended not to use sql with side effects, such as assign operations, SELECT INTO.
 
-**(2) run**
+#### output
 
-```shell
-cd ${IMPOHOME}
-./impomysql task ./resources/taskconfig.json
-```
+You will see a new directory `${IMPOHOME}/output/mysql/task-1`. 
 
-You will see a new directory `${IMPOHOME}/output/mysql/task-1`. Actually we will remove the old directory and create a new directory.
+>  Actually we will remove the old directory and create a new directory.
 
-**(3) output**
-
-If you used mysql 8.0.30, you will see a directory named `bugs` in `${IMPOHOME}/output/mysql/task-1`, and two files named `bug-0-0-FixMHaving1U.log` and `bug-0-0-FixMHaving1U.json` respectively in `bugs`.
+There is a directory named `bugs` in `${IMPOHOME}/output/mysql/task-1`, and two files named `bug-0-0-FixMHaving1U.log` and `bug-0-0-FixMHaving1U.json` respectively in `bugs`.
 
 We will save logical bugs in `bugs`. For each bug, we will create two files: bug-`bugId`-`sqlId`-`mutationName`.log and bug-`bugId`-`sqlId`-`mutationName`.json. `bugId` is the bug number(start from 0) during this task, `sqlId` is the original sql number(start from 0) in `dmlPath`, `mutationName` is the name of mutation.
 
-* bug-`bugId`-`sqlId`-`mutationName`: save the mutation name, original sql, original result, mutated sql, mutated result, and the relationship between the original result and the mutated result we expect. For example:
+* bug-`bugId`-`sqlId`-`mutationName`.log: save the mutation name, original sql, original result, mutated sql, mutated result, and the relationship between the original result and the mutated result we expect. For example:
 
   ```sql
   **************************************************
@@ -190,7 +202,7 @@ We will save logical bugs in `bugs`. For each bug, we will create two files: bug
 
   >  `[IsUpper] false` means that the original result should ⊆ the mutated result.
 
-* bug-`bugId`-`sqlId`-`mutationName`.json: json format of bug-`bugId`-`sqlId`-`mutationName` exclude execution result. For example:
+* bug-`bugId`-`sqlId`-`mutationName`.json: json format of bug-`bugId`-`sqlId`-`mutationName` .log exclude execution result. For example:
 
   ```json
   {
@@ -212,31 +224,29 @@ Additionally, there are two files in `${IMPOHOME}/output/mysql/task-1`:
 
    ```json
    {
-     "startTime": "2022-11-13 23:26:33.315914777 +0800 CST m=+0.003181897",
+     "startTime": "2022-11-18 19:15:29.437554842 +0800 CST m=+0.001609271",
      "ddlSqlsNum": 2,
      "dmlSqlsNum": 3,
-     "endInitTime": "2022-11-13 23:26:33.489661191 +0800 CST m=+0.176927962",
+     "endInitTime": "2022-11-18 19:15:29.476101614 +0800 CST m=+0.040156084",
      "stage1ErrNum": 0,
      "stage1ExecErrNum": 0,
-     "stage1IgExecErrNum": 0,
      "stage2ErrNum": 0,
      "stage2UnitNum": 5,
      "stage2UnitErrNum": 0,
      "stage2UnitExecErrNum": 0,
-     "stage2IgUnitExecErrNum": 0,
      "impoBugsNum": 1,
      "saveBugErrNum": 0,
-     "endTime": "2022-11-13 23:26:33.516655061 +0800 CST m=+0.203921832"
+     "endTime": "2022-11-18 19:15:29.478823678 +0800 CST m=+0.042878143"
    }
    ```
-
-  This file is used for debugging, from which you can get the task's start time(`startTime`), end time(`endTime`), and the number of logical bugs we detected(`impoBugsNum`).
+   
+   This file is used for debugging, from which you can get the task's start time(`startTime`), end time(`endTime`), and the number of logical bugs we detected(`impoBugsNum`).
 
 ### 3.4 run task with go-randgen
 
 A `task` can automatically generate `ddlPath` and `dmlPath` with the help of [go-randgen](https://github.com/pingcap/go-randgen), you need to build it first.
 
-**(1) build go-randgen**
+#### build go-randgen
 
 ```shell
 git clone https://github.com/pingcap/go-randgen.git
@@ -247,9 +257,18 @@ make all
 
 Now you will see an executable file `go-randgen`, copy it to `${IMPOHOME}/resources`.
 
-**(2) input**
+#### quick start
 
-Next, modify the configuration file of the `task`. For example, you can copy the above configuration file `${IMPOHOME}/resources/taskconfig.json` to `${IMPOHOME}/resources/taskrdgenconfig.json`, and modify the new configuration file:
+We assume you have executed `sudo docker run -itd --name mysqltest -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30`
+
+```shell
+cd ${IMPOHOME}
+./impomysql task ./resources/taskrdgenconfig.json
+```
+
+#### input
+
+Next, modify the configuration of `task`. see  `${IMPOHOME}/resources/taskrdgenconfig.json`:
 
 ```json
 {
@@ -294,14 +313,7 @@ Note that:
 
 * If you used both (non empty) `rdGenPath` and `ddlPath`, `dmlPath`, we will run `task` with `go-randgen`, and set `ddlPath` to  `outputPath/dbms/task-taskId/output.data.sql`, set `dmlPath` to `outputPath/dbms/task-taskId/output.rand.sql`.
 
-**(3) run**
-
-```shell
-cd ${IMPOHOME}
-./impomysql task ./resources/taskrdgenconfig.json
-```
-
-**(4) output**
+#### output
 
 In addition to `bugs`, `task.log`, `result.json`, you will also see `output.data.sql`, `output.rand.sql`.
 
@@ -311,9 +323,18 @@ Of course, if you set `needDML` to false, we will delete `output.rand.sql`.
 
 `taskpool` can continuously run tasks in parallel. Make sure you can run task with [go-randgen](https://github.com/pingcap/go-randgen).
 
-**(1) input**
+#### quick start
 
-create `taskpoolconfig.json` in `${IMPOHOME}/resources/`:
+We assume you have executed `sudo docker run -itd --name mysqltest -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30`
+
+```shell
+cd ${IMPOHOME}
+./impomysql taskpool ./resources/taskpoolconfig.json
+```
+
+#### input
+
+See `${IMPOHOME}/resources/taskpoolconfig.json`:
 
 ```json
 {
@@ -346,15 +367,9 @@ Note that:
 
 * `taskpool` will continuously run tasks with go-randgen in parallel, and we will set `needDML` to false.
 * It is recommended to set `queriesNum` to a large value(>=10000, a task with `queriesNum`=10000 will take about 5~10 minutes), otherwise you will get a lot of task directories.
+* We will stop all tasks if the database crashes.
 
-**(2) run**
-
-```shell
-cd ${IMPOHOME}
-./impomysql taskpool ./resources/taskpoolconfig.json
-```
-
-**(3) output**
+#### output
 
 In `${IMPOHOME}/output/mysql`, you will not only see the task directories, but also:
 
@@ -366,23 +381,20 @@ In `${IMPOHOME}/output/mysql`, you will not only see the task directories, but a
 
   ```json
   {
-    "startTime": "2022-11-13 19:49:10.508084726 +0800 CST m=+0.001273098",
+    "startTime": "2022-11-18 19:33:20.290851516 +0800 CST m=+0.001550968",
     "totalTaskNum": 19,
     "finishedTaskNum": 16,
     "errorTaskNum": 0,
     "errorTaskIds": [],
-    "stage1WarnNum": 0,
-    "stage1WarnTaskIds": [],
-    "stage2WarnNum": 0,
-    "stage2WarnTaskIds": [],
     "bugsNum": 4,
     "bugTaskIds": [
       0,
       6,
       11
     ],
-    "endTime": "2022-11-13 19:49:27.988231218 +0800 CST m=+17.481420080"
+    "endTime": "2022-11-18 19:33:28.446037916 +0800 CST m=+8.156737393"
   }
   ```
-
+  
   This file is used for debugging, from which you can get the taskpool's start time(`startTime`), end time(`endTime`), the number of logical bugs we detected(`bugsNum`) and their taskId(`bugTaskIds`).
+

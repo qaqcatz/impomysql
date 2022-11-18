@@ -1,6 +1,6 @@
 // Package stage2: mutate a sql statement.
 //
-// 1. visit the sub-AST and obtain the candidate set of  mutation points.
+// 1. visit the sub-AST defined in resources/impo.yy and get the candidate set of mutation points.
 //
 // 2. you can choose any mutation point to mutate, each mutation has no side effects.
 //

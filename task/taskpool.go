@@ -99,10 +99,6 @@ type TaskPoolResult struct {
 	FinishedTaskNum   int    `json:"finishedTaskNum"`
 	ErrorTaskNum      int    `json:"errorTaskNum"`
 	ErrorTaskIds      []int  `json:"errorTaskIds"`
-	Stage1WarnNum     int    `json:"stage1WarnNum"`
-	Stage1WarnTaskIds []int  `json:"stage1WarnTaskIds"`
-	Stage2WarnNum     int    `json:"stage2WarnNum"`
-	Stage2WarnTaskIds []int  `json:"stage2WarnTaskIds"`
 	BugsNum           int    `json:"bugsNum"`
 	BugTaskIds        []int  `json:"bugTaskIds"`
 	EndTime           string `json:"endTime"`
@@ -185,10 +181,6 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 		FinishedTaskNum:   0,
 		ErrorTaskNum:      0,
 		ErrorTaskIds:      make([]int, 0),
-		Stage1WarnNum:     0,
-		Stage1WarnTaskIds: make([]int, 0),
-		Stage2WarnNum:     0,
-		Stage2WarnTaskIds: make([]int, 0),
 		BugsNum:           0,
 		BugTaskIds:        make([]int, 0),
 		EndTime:           "",
@@ -217,7 +209,15 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 		// execute a new task
 		taskId := taskPoolResult.TotalTaskNum
 		taskPoolResult.TotalTaskNum += 1
-		go PrepareAndRunTask(config, logger, threadPool, conn, taskPoolResult, taskId)
+
+		result := conn.ExecSQL("SELECT 1");
+		if result.Err != nil {
+			// may crash
+			logger.Error("task", taskId, " connector " + conn.DbName + " SELECT 1 failed, database may crash: ", result.Err)
+			break
+		} else {
+			go PrepareAndRunTask(config, logger, threadPool, conn, taskPoolResult, taskId)
+		}
 	}
 	// save taskpool result.
 	taskPoolResult.EndTime = time.Now().String()
@@ -287,16 +287,6 @@ func PrepareAndRunTask(config *TaskPoolConfig, logger *logrus.Logger, threadPool
 		return
 	}
 	taskPoolResult.lock.Lock()
-	stage1WarnNum := taskResult.Stage1ExecErrNum-taskResult.Stage1IgExecErrNum
-	if stage1WarnNum > 0 {
-		taskPoolResult.Stage1WarnNum += stage1WarnNum
-		taskPoolResult.Stage1WarnTaskIds = append(taskPoolResult.Stage1WarnTaskIds, taskId)
-	}
-	stage2WarnNum := taskResult.Stage2UnitExecErrNum-taskResult.Stage2IgUnitExecErrNum
-	if stage2WarnNum > 0 {
-		taskPoolResult.Stage2WarnNum += stage2WarnNum
-		taskPoolResult.Stage2WarnTaskIds = append(taskPoolResult.Stage2WarnTaskIds, taskId)
-	}
 	bugsNum := taskResult.ImpoBugsNum
 	if bugsNum > 0 {
 		taskPoolResult.BugsNum += bugsNum

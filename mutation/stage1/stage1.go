@@ -16,14 +16,15 @@ type InitResult struct {
 	ExecResult *connector.Result
 }
 
-// Init: for the input sql, remove aggregate function(and group by),
-// window function, LEFT|RIGHT JOIN, Limit.
+// Init: for the input sql, remove aggregate functions(and GROUP BY), window functions, LEFT|RIGHT JOIN, LIMIT, uncertain functions.
 //
 // Note that:
 //
-// (1) The transformed sql may fail to execute.
+// (1) we only support SELECT statement.
 //
-// (2) we only Support SELECT statement.
+// (2) make sure your sql has no side-effects, such as assign operations, SELECT into.
+//
+// (3) The transformed sql may fail to execute.
 func Init(sql string) *InitResult {
 	initResult := &InitResult{
 		InitSql: "",

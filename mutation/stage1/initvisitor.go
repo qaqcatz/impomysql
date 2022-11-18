@@ -5,8 +5,6 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 )
 
-// InitVisitor: Remove aggregate function(and group by),
-// window function, LEFT|RIGHT JOIN, Limit.
 type InitVisitor struct {
 }
 
@@ -15,6 +13,7 @@ func (v *InitVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	rmWindow(in)
 	rmLRJoin(in)
 	rmLimit(in)
+	rmUncertain(in)
 	return in, false
 }
 

@@ -13,66 +13,69 @@ import (
 
 // Candidate: (mutation name, U, candidate node, Flag).
 //
+// U: 1: upper mutation, 0: lower mutation;
+//
 // Flag: 1: positive, 0: negative.
 //
-// U: when positive, 1: upper mutation, 0: lower mutation.
+// (U ^ Flag)^1): 1: the mutated result will expand; 0: the mutated result will shrink.
 //
-// example:
-//   [positive]
-//     SELECT * FROM T WHERE X > 0;
-//     [ upper mutation ] X > 0 -> X >= 0
-//     The result set will expand
-//   [negative]
-//     SELECT * FROM T WHERE (X > 0) IS FALSE;
-//     [upper mutation ] x > 0 -> X >= 0
-//     The result set will shrink
-//   [negative]
-//     SELECT * FROM T WHERE (X > 0) IS FALSE;
-//     [lower mutation ] x > 0 -> X > 1
-//     The result set will expand
-// Obviously you should use ((U ^ Flag)^1) == 1 to calculate the effect of mutation
+// For example:
+//
+//   SELECT * FROM T WHERE (X > 0) IS FALSE; -- sql1
+//   SELECT * FROM T WHERE (X >= 0) IS FALSE; -- sql2
+//
+// sql(x>0) -> sql2(x>=0) is an upper mutation, U = 1. However, IS FALSE brings negative impact, Flag = 0.
+// Therefore, the mutated result will shrink, (U ^ Flag)^1) = 0
 type Candidate struct {
 	MutationName string // mutation name
-	// 1: upper mutation, strings.HasSuffix(MutationName, "U"): true;
-	// 0: lower mutation, strings.HasSuffix(MutationName, "L"): true
-	U    int
+	U    int // 1: upper mutation, 0: lower mutation;
 	Node ast.Node // candidate node
 	Flag int      // 1: positive, 0: negative
 }
 
-// MutateVisitor: visit the sub-AST and obtain the candidate set of
-// mutation points, see Candidates.
+// MutateVisitor:
 //
-// Each mutation has its own name, see:
-//   FixMDistinctU
-//	 FixMDistinctL
-//	 FixMCmpOpU
-//	 FixMCmpOpL
-//	 FixMUnionAllU
-//	 FixMUnionAllL
-//   FixMInNullU
-//	 FixMWhere1U
-//	 FixMWhere0L
-//	 FixMHaving1U
-//	 FixMHaving0L
-//	 FixMOn1U
-//	 FixMOn0L
-//	 FixMRmUnionAllL
-//	 RdMLikeU
-//	 RdMLikeL
-//	 RdMRegExpU
-//	 RdMRegExpL
-//
-// about the prefix {FixM|RdM}(currently not working):
-//   FixM means fixed mutation;
-//   RdM means random mutation;
-// about the suffix {U|L}:
-//   U means upper mutation,
-//   L means lower mutation.
 // There are lots of functions under MutateVisitor, we classify them by prefix:
-//   visitxxx: calculate flag, call miningxxx
+//   visitxxx: calculate Flag, call miningxxx
 //   miningxxx: call addxxx
-//   addxxx: add mutation u/l to Candidates
+//   addxxx: add mutation U/L to Candidates
+//
+// We have made a lot of effort to analyze the features of mysql:
+//
+// - analyzed https://dev.mysql.com/doc/refman/8.0/en/
+//
+// - analyzed all 175 ast.Node of tidb parser(https://github.com/pingcap/tidb/tree/v5.4.2/parser),
+// of which 57 nodes are related to query, including 31 operators and 274 functions.
+//
+// Through the analysis we get the following strategies:
+//
+// (1) visit strategies:
+// We recursively traverse each ast node and its descendants. Stop recursion when meet:
+//
+// - numerical operations, such as |, &, ~, <<, >>, +, -, *, /(DIV), %(MOD), ^,
+// see https://dev.mysql.com/doc/refman/8.0/en/numeric-functions.html
+//
+// - logical operation XOR. we will visit the descendants of OR(||), AND(&&), NOT(!), but stop recursion when meet XOR.
+// see https://dev.mysql.com/doc/refman/8.0/en/logical-operators.html
+//
+// - comparison operations exclude IS [NOT] TRUE/IS [NOT] FALSE, such as =, >=, >, <=, <, !=, <>, <=>,
+// IS NULL, IN, BETWEEN AND, LIKE, REGEXP.
+// see https://dev.mysql.com/doc/refman/8.0/en/comparison-operators.html
+//   comparison operations are important mutation points.
+//   For convenience, we only focus on the top-level comparison operations, so we stop recursion when meet comparison operations.
+//   Note that we will visit the descendants of IS TRUE/ IS FALSE, they are equivalent to logical operations.
+//   Moreover, we only focus on true/false, so we do care about IS NULL, <=>, just stop recursion.
+//
+// - subqueries without ANY,ALL,SOME,IN,EXISTS. such as SELECT X FROM T1 WHERE X > (SELECT 1)
+//
+// - control flow. such as CASE, IF, see https://dev.mysql.com/doc/refman/8.0/en/flow-control-statements.html
+//
+// - functions. Currently we do not analyze the implication in functions.
+//
+// - unknown features. Although we have made a lot of effort to analyze the features of mysql, we may still be ill-considered.
+// Therefore, we conservatively stop recursion when meet unknown features.
+//
+// (2) mutation strategies: We will calculate candidate mutation points during visit, then mutate them. see allmutations.go
 type MutateVisitor struct {
 	Root ast.Node
 	Candidates map[string][]*Candidate // mutation name : slice of *Candidate

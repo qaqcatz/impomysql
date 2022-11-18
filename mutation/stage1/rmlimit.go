@@ -6,7 +6,7 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 )
 
-// rmLimit: limit x -> limit 2147483647
+// rmLimit: remove LIMIT. Actually, limit x -> limit 2147483647
 func rmLimit(in ast.Node) bool {
 	if limit, ok := in.(*ast.Limit); ok {
 		limit.Count = &test_driver.ValueExpr{

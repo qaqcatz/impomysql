@@ -1,0 +1,16 @@
+{
+  "outputPath": "./output",
+  "dbms": "mysql",
+  "taskId": 1,
+  "host": "127.0.0.1",
+  "port": 13306,
+  "username": "root",
+  "password": "123456",
+  "dbname": "TEST",
+  "seed": 123456,
+  "rdGenPath": "./resources/go-randgen",
+  "zzPath": "./resources/impo.zz.lua",
+  "yyPath": "./resources/impo.yy",
+  "queriesNum": 100,
+  "needDML": true
+}

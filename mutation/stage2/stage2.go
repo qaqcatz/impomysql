@@ -8,7 +8,35 @@ import (
 	"github.com/qaqcatz/impomysql/connector"
 )
 
-// CalCandidates: see MutateVisitor
+// CalCandidates: visit the sub-AST defined in resources/impo.yy and get the candidate set of mutation points. see MutateVisitor.
+//
+// Each mutation has its own name, see:
+//
+//   FixMDistinctU
+//	 FixMDistinctL
+//	 FixMCmpOpU
+//	 FixMCmpOpL
+//	 FixMUnionAllU
+//	 FixMUnionAllL
+//   FixMInNullU
+//	 FixMWhere1U
+//	 FixMWhere0L
+//	 FixMHaving1U
+//	 FixMHaving0L
+//	 FixMOn1U
+//	 FixMOn0L
+//	 FixMRmUnionAllL
+//	 RdMLikeU
+//	 RdMLikeL
+//	 RdMRegExpU
+//	 RdMRegExpL
+//
+// about the prefix {FixM|RdM}(currently not working):
+//   FixM means fixed mutation;
+//   RdM means random mutation;
+// about the suffix {U|L}:
+//   U means upper mutation,
+//   L means lower mutation.
 func CalCandidates(sql string) (*MutateVisitor, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
@@ -26,7 +54,7 @@ func CalCandidates(sql string) (*MutateVisitor, error) {
 	return v, nil
 }
 
-// ImpoMutate: you can choose any candidate to mutate, each mutation has no side effects.
+// ImpoMutate: you can choose any candidate calculated by CalCandidates() to mutate, each mutation has no side effects.
 func ImpoMutate(rootNode ast.Node, candidate *Candidate, seed int64) (string, error) {
 	var sql []byte = nil
 	var err error = nil

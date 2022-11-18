@@ -5,7 +5,7 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 )
 
-// rmLRJoin: {LEFT|RIGHT} [OUTER] JOIN -> JOIN
+// rmLRJoin: change LEFT/RIGHT [OUTER] JOIN to JOIN
 func rmLRJoin(in ast.Node) bool {
 	if join, ok := in.(*ast.Join); ok {
 		if join.Tp == ast.LeftJoin || join.Tp == ast.RightJoin {

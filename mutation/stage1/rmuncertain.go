@@ -1,8 +1,13 @@
 package stage1
 
-// todo: remove uncertain functions
+import (
+	"github.com/pingcap/tidb/parser/ast"
+	_ "github.com/pingcap/tidb/parser/test_driver"
+)
 
-// uncertain functions:
+// rmUncertain:
+// todo: remove uncertain functions
+//
 //  rand
 //
 //  curdate
@@ -40,3 +45,6 @@ package stage1
 //  bin_to_uuid
 //
 //  random_bytes
+func rmUncertain(in ast.Node) bool {
+	return false
+}
