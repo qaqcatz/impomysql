@@ -1,5 +1,7 @@
 # impomysql
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/qaqcatz/impomysql.svg)](https://pkg.go.dev/github.com/qaqcatz/impomysql)
+
 Detecting Logic Bugs in mysql through Implication Oracle.
 
 Also supports DBMS compatible with mysql syntax, such as mariadb, tidb, oceanbase.
