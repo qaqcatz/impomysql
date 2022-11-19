@@ -10,7 +10,7 @@ import (
 
 // use task taskConfigPath
 // or  taskpool taskConfigPoolPath
-// or  mayaffect dbmsOutputPath version dsn [whereVersionEQ], see tool.MayAffect
+// or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tool.MayAffect
 // or  dropdblike dsn like, see tool.DropDBLike
 func main() {
 	args := os.Args
@@ -22,12 +22,12 @@ func main() {
 		doTask(args)
 	case "taskpool":
 		doTaskPool(args)
-	case "mayaffect":
-		doMayAffect(args)
+	case "affversion":
+		doAffVersion(args)
 	case "dropdblike":
 		doDropDBLike(args)
 	default:
-		log.Fatal("please use task, taskpool, mayaffect, dropdblike")
+		log.Fatal("please use task, taskpool, affversion, dropdblike")
 	}
 }
 
@@ -59,9 +59,9 @@ func doTaskPool(args []string) {
 	}
 }
 
-func doMayAffect(args []string) {
+func doAffVersion(args []string) {
 	if len(args) <= 5 {
-		log.Fatal("[doMayAffect]len(args) <= 5")
+		log.Fatal("[doAffVersion]len(args) <= 5")
 	}
 	dbmsOutputPath := args[2]
 	version := args[3]
@@ -69,18 +69,18 @@ func doMayAffect(args []string) {
 	threadNumStr := args[5]
 	threadNum, err := strconv.Atoi(threadNumStr)
 	if err != nil {
-		log.Fatal("[doMayAffect]parse threadNum error")
+		log.Fatal("[doAffVersion]parse threadNum error")
 	}
 	if threadNum <= 0 {
-		log.Fatal("[doMayAffect]threadNum <= 0")
+		log.Fatal("[doAffVersion]threadNum <= 0")
 	}
 	whereVersionEQ := ""
 	if len(args) > 6 {
 		whereVersionEQ = args[6]
 	}
-	err = tool.MayAffect(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
+	err = tool.AffVersion(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
 	if err != nil {
-		log.Fatal("[doMayAffect]may affect error: ", err)
+		log.Fatal("[doAffVersion]affect version error: ", err)
 	}
 }
 

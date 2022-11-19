@@ -17,11 +17,11 @@ import (
 //   ->
 //   drop database TEST, TEST0, TEST1, TEST2, ...
 // dsn format:
-//   username$password$host$port$dbname
-//   Obviously you cannot use '$' in any of username, password, host, port, dbname
-//   In DropDBLike, we will ignore your dbname
+//   username^password^host^port^dbname
+//   you cannot use '^' in any of username, password, host, port, dbname
+//   in DropDBLike, we will ignore your dbname
 func DropDBLike(dsn string, like string) error {
-	dsnUnits := strings.Split(dsn, "$")
+	dsnUnits := strings.Split(dsn, "^")
 	if len(dsnUnits) != 5 {
 		return errors.New("[DropDBLike]len(dsnUnits) != 5")
 	}

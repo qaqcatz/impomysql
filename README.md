@@ -91,7 +91,7 @@ Now you will see an executable file `${IMPOHOME}/impomysql`.
 For example, you can start mysql with docker:
 
 ```shell
-sudo docker run -itd --name test -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30
+sudo docker run -itd --name mysqltest -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:8.0.30
 ```
 
 You can also compile and install the DBMS yourself.
@@ -448,5 +448,142 @@ We provide default configuration files for mysql, mariadb, tidb, oceanbase, you 
    ./impomysql taskpool ./resources/testoceanbase.json
    ```
 
-   
+
+## 4. Tools
+
+### 4.1 affversion
+
+You may need to verify which database versions a logical bug affects.  
+
+We provide `affversion` for this:
+
+```shell
+cd ${IMPOHOME}
+./impomysql affversion dbmsOutputPath version dsn threadNum [whereVersionEQ]
+# such as: 
+# ./impomysql affversion ./output/mysql 8.0.30 root^123456^127.0.0.1^13306^TEST 8
+# ./impomysql affversion ./output/mysql 5.7 root^123456^127.0.0.1^13307^TEST 8 8.0.30
+```
+
+`affversion` will verify whether the bugs detected by tasks can be reproduced on the specified version of DBMS.
+
+* `dbmsOutputPath`: `the OutputPath of your tasks` + '/' + `the DBMS of your tasks`, for example, ./output/mysql.
+
+* `version`: the specified version of DBMS, needs to be a unique string, it is recommended to use tag or commit id.
+
+* `threadNum`: executing the ddl of a logical bug is time-consuming, so we will execute them in parallel.
+
+* `dsn`: you need to deploy the specified version of DBMS in advance and provide your dsn, format:
+
+  ```shell
+  username^password^host^port^dbPrefix
+  you cannot use '^' in any of username, password, host, port, dbPrefix.
+  ```
+
+  for each thread i, we will create a connector with dsn "username:password@tcp(host:port)/dbPrefix+i"
+
+* `whereVersionEQ`: before introducing `whereVersionEQ`, you need to know how `affversion` works.
+
+**How `affversion` works?**
+
+(1) init `affversion.db`
+
+We will create a sqlite database `affversion.db` in `dbmsOutputPath` with a table:
+
+```sql
+CREATE TABLE `affversion` (`taskPath` TEXT, `bugJsonName` TEXT, `version` TEXT);
+CREATE INDEX `versionidx` ON `affversion` (`version`);
+```
+
+If `affversion.db` does not exist, we will create database `affversion.db` and table `affversion`,  traverse each task in `dbmsOutputPath`, traverse each bug in `taskPath/bugs`(if exists), update table `affversion`:
+
+```sql
+INSERT INTO `affversion` VALUES (taskPath, bugJsonName, "");
+```
+
+(2) load bugs group by `taskPath`
+
+```sql
+SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ
+```
+
+We will save these bugs in a map group by `taskPath`, so that each group only needs to execute ddl once.
+
+Obviously, If `whereVersionEQ`="", you will get all bugs.
+
+(3) verify each group in parallel
+
+Each group will be assigned a thread.
+
+We will first init database with ddl.
+
+Then, for each bug in this group, we will verify whether the bug can be reproduced on the specified version of DBMS.
+
+If it can be reproduced, we will:
+
+```sql
+INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
+WHERE NOT EXISTS
+(SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
+```
+
+This is done to ensure that each row is unique. (We will also ensure thread safety)
+
+Now you understand how `affversion` works, you can query the table `affversion` to get the information you want.
+
+**example**
+
+We assume that you have finished the **quick start** in **3.5 run task pool**.
+
+Run `affversion`:
+
+```shell
+./impomysql affversion ./output/mysql 8.0.30 root^123456^127.0.0.1^13306^TEST 8
+```
+
+`affversion` will verify whether the logical bugs detected by `taskpool` can be reproduced on mysql 8.0.30.
+
+You will see a sqlite database `affversion.db` in `./output/mysql`.
+
+```shell
+sqlite3 affversion.db
+sqlite> .headers on
+sqlite> .mode column
+sqlite> .tables
+affversion
+sqlite> select * from affversion;
+taskPath                                                 bugJsonName                 version   
+-------------------------------------------------------  --------------------------  ----------
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso  8.0.30    
+```
+
+These logical bugs were successfully reproduced on mysql 8.0.30.
+
+Then deploy mysql 5.7:
+
+```shell
+sudo docker run -itd --name mysqltest2 -p 13307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+```
+
+Run `affversion`:
+
+```shell
+./impomysql affversion ./output/mysql 5.7 root^123456^127.0.0.1^13307^TEST 8 8.0.30
+```
+
+`affversion` will verify whether the logical bugs on mysql 8.0.30 can be reproduced on mysql 5.7.
+
+See `./output/mysql/affversion.db`:
+
+```shell
+wait, these sql failed in mysql 5.7 because of some features, we need to simplfy them first!
+todo
+```
 

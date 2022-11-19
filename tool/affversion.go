@@ -16,7 +16,7 @@ import (
 	"sync"
 )
 
-// MayAffect:
+// AffVersion:
 // Verify whether the bugs detected by tasks can be reproduced on the specified version of DBMS.
 //
 // - dbmsOutputPath: the OutputPath of your tasks + '/' + the DBMS of your tasks, for example, ./output/mysql
@@ -24,47 +24,47 @@ import (
 // - version: the specified version of DBMS, needs to be a unique string, it is recommended to use tag or commit id.
 //
 // - dsn, threadNum: You need to deploy the specified version of DBMS in advance and provide your dsn, format:
-//   username$password$host$port$dbPrefix
-//   Obviously you cannot use '$' in any of username, password, host, port, dbPrefix
+//   username^password^host^port^dbPrefix
+//   you cannot use '^' in any of username, password, host, port, dbPrefix
 // for each thread i, we will create a connector with dsn "username:password@tcp(host:port)/dbPrefix+i"
 //
-// Before introducing whereVersionEQ, you need to know how MayAffect works:
+// Before introducing whereVersionEQ, you need to know how AffVersion works:
 //
-// (1) init mayaffect.db:
-// We will create a sqlite database `mayaffect.db` in dbmsOutputPath with a table:
-//   CREATE TABLE `mayaffect` (`taskPath` TEXT, `bugJsonName` TEXT, `version` TEXT);
-//   CREATE INDEX `versionidx` ON `mayaffect` (`version`);
-// If `mayaffect.db` does not exist, we will create database `mayaffect.db` and table `mayaffect`,
-// then traverse each task in dbmsOutputPath, traverse each bug in taskPath/bugs(if exists) and update table `mayaffect`:
-//   INSERT INTO `mayaffect` VALUES (taskPath, bugJsonName, "");
+// (1) init affversion.db:
+// We will create a sqlite database `affversion.db` in dbmsOutputPath with a table:
+//   CREATE TABLE `affversion` (`taskPath` TEXT, `bugJsonName` TEXT, `version` TEXT);
+//   CREATE INDEX `versionidx` ON `affversion` (`version`);
+// If `affversion.db` does not exist, we will create database `affversion.db` and table `affversion`,
+// then traverse each task in dbmsOutputPath, traverse each bug in taskPath/bugs(if exists) and update table `affversion`:
+//   INSERT INTO `affversion` VALUES (taskPath, bugJsonName, "");
 //
 // (2) load bugs group by taskPath:
-//   SELECT `taskPath`, `bugJsonName` FROM `mayaffect` WHERE `version` = whereVersionEQ
+//   SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ
 // We will save these bugs in a map group by taskPath, so that each group only needs to execute ddl once.
 //
 // Obviously, If whereVersionEQ="", you will get all bugs.
 //
 // (3) verify each group in parallel:
-// Each group is assigned a thread.
+// Each group will be assigned a thread.
 // We will first init database with ddl.
 // Then, for each bug in this group, we will verify whether the bug can be reproduced on the specified version of DBMS.
 // If it can be reproduced, we will:
-//   INSERT INTO `mayaffect` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
+//   INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
 //   WHERE NOT EXISTS
-//   (SELECT * from `mayaffect` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
+//   (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
 // This is done to ensure that each row is unique. (We will also ensure thread safety)
 //
-// Now you understand how MayAffect works, you can query the table `mayaffect` to get the information you want.
-func MayAffect(dbmsOutputPath string, version string, dsn string, threadNum int, whereVersionEQ string) error {
+// Now you understand how AffVersion works, you can query the table `affversion` to get the information you want.
+func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int, whereVersionEQ string) error {
 	// get abs path
 	dbmsOutputPath, err := filepath.Abs(dbmsOutputPath)
 	if err != nil {
-		return errors.Wrap(err, "[MayAffect]path abs error")
+		return errors.Wrap(err, "[AffVersion]path abs error")
 	}
 	// create connectors
-	dsnUnits := strings.Split(dsn, "$")
+	dsnUnits := strings.Split(dsn, "^")
 	if len(dsnUnits) != 5 {
-		return errors.New("[MayAffect]len(dsnUnits) != 5")
+		return errors.New("[AffVersion]len(dsnUnits) != 5: "+dsn)
 	}
 	username := dsnUnits[0]
 	password := dsnUnits[1]
@@ -72,7 +72,7 @@ func MayAffect(dbmsOutputPath string, version string, dsn string, threadNum int,
 	portStr := dsnUnits[3]
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return errors.Wrap(err, "[MayAffect]parse port error")
+		return errors.Wrap(err, "[AffVersion]parse port error")
 	}
 	dbPrefix := dsnUnits[4]
 	threadPool := make(chan *connector.Connector, threadNum)
@@ -83,27 +83,27 @@ func MayAffect(dbmsOutputPath string, version string, dsn string, threadNum int,
 		}
 		threadPool <- conn
 	}
-	// (1) init mayaffect.db:
-	mayAffectDBPath := path.Join(dbmsOutputPath, "mayaffect.db")
-	mayAffectDBPathExists, err := pathExists(mayAffectDBPath)
+	// (1) init affversion.db:
+	affVersionDBPath := path.Join(dbmsOutputPath, "affversion.db")
+	affVersionDBPathExists, err := pathExists(affVersionDBPath)
 	if err != nil {
 		return err
 	}
 	// sql.Open will create database if not exists.
-	mayAffectDB, err := sql.Open("sqlite3", mayAffectDBPath)
-	defer mayAffectDB.Close()
+	affVersionDB, err := sql.Open("sqlite3", affVersionDBPath)
+	defer affVersionDB.Close()
 	if err != nil {
-		return errors.Wrap(err, "[MayAffect]open database error")
+		return errors.Wrap(err, "[AffVersion]open database error")
 	}
 	// if it is the first time to open db, create table and insert data
-	if !mayAffectDBPathExists {
-		_, err = mayAffectDB.Exec(`CREATE TABLE mayaffect (taskPath TEXT, bugJsonName TEXT, version TEXT);`)
+	if !affVersionDBPathExists {
+		_, err = affVersionDB.Exec(`CREATE TABLE affversion (taskPath TEXT, bugJsonName TEXT, version TEXT);`)
 		if err != nil {
-			return errors.Wrap(err, "[MayAffect]create table error")
+			return errors.Wrap(err, "[AffVersion]create table error")
 		}
-		_, err = mayAffectDB.Exec(`CREATE INDEX versionidx ON mayaffect (version);`)
+		_, err = affVersionDB.Exec(`CREATE INDEX versionidx ON affversion (version);`)
 		if err != nil {
-			return errors.Wrap(err, "[MayAffect]create index error")
+			return errors.Wrap(err, "[AffVersion]create index error")
 		}
 		bugJsonPaths, err := getAllBugsFromDir(dbmsOutputPath);
 		if err != nil {
@@ -112,14 +112,14 @@ func MayAffect(dbmsOutputPath string, version string, dsn string, threadNum int,
 		for _, bugJsonPath := range bugJsonPaths {
 			taskPath := filepath.Join(bugJsonPath, "../", "../")
 			bugJsonName := filepath.Base(bugJsonPath)
-			_, err = mayAffectDB.Exec(`INSERT INTO mayaffect VALUES ('`+taskPath+`', '`+bugJsonName+`', '');`)
+			_, err = affVersionDB.Exec(`INSERT INTO affversion VALUES ('`+taskPath+`', '`+bugJsonName+`', '');`)
 			if err != nil {
-				return errors.Wrap(err, "[MayAffect]insert bug error")
+				return errors.Wrap(err, "[AffVersion]insert bug error")
 			}
 		}
 	}
 	// (2) load bugs group by taskPath:
-	bugGroups, err := getBugGroupsFromDB(mayAffectDB, whereVersionEQ)
+	bugGroups, err := getBugGroupsFromDB(affVersionDB, whereVersionEQ)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func MayAffect(dbmsOutputPath string, version string, dsn string, threadNum int,
 		// wait for a free connector
 		conn := <- threadPool
 		waitgroup.Add(1)
-		go doVerify(version, mayAffectDB, &waitgroup, &mutex, conn, threadPool, taskPath, bugGroup)
+		go doVerify(version, affVersionDB, &waitgroup, &mutex, conn, threadPool, taskPath, bugGroup)
 	}
 	waitgroup.Wait()
 	return nil
@@ -171,12 +171,12 @@ func getAllBugsFromDir(dbmsOutputPath string) ([]string, error) {
 	return bugJsonPaths, nil
 }
 
-// getBugGroupsFromDB: SELECT `taskPath`, `bugJsonName` FROM `mayaffect` WHERE `version` = whereVersionEQ,
+// getBugGroupsFromDB: SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ,
 // group by taskPath
 func getBugGroupsFromDB(db *sql.DB, whereVersionEQ string) (map[string][]string, error) {
 	bugGroups := make(map[string][]string)
 
-	rows, err := db.Query("SELECT taskPath, bugJsonName FROM mayaffect WHERE version='"+whereVersionEQ+"'")
+	rows, err := db.Query("SELECT taskPath, bugJsonName FROM affversion WHERE version='"+whereVersionEQ+"'")
 	if err != nil {
 		return nil, errors.Wrap(err, "[getBugGroupsFromDB]select bug error")
 	}
@@ -212,7 +212,7 @@ func pathExists(path string) (bool, error) {
 	return false, errors.Wrap(err, "[PathExists]file stat error")
 }
 
-func doVerify(version string, mayAffectDB *sql.DB,
+func doVerify(version string, affVersionDB *sql.DB,
 	waitGroup *sync.WaitGroup, mutex *sync.Mutex,
 	conn *connector.Connector, threadPool chan *connector.Connector,
 	taskPath string, bugGroup []string) {
@@ -238,15 +238,15 @@ func doVerify(version string, mayAffectDB *sql.DB,
 			continue
 		}
 		mutex.Lock()
-		// INSERT INTO `mayaffect` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
+		// INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
 		// WHERE NOT EXISTS
-		// (SELECT * from `mayaffect` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
-		_, err = mayAffectDB.Exec(`INSERT INTO mayaffect (taskPath, bugJsonName, version) `+
+		// (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
+		_, err = affVersionDB.Exec(`INSERT INTO affversion (taskPath, bugJsonName, version) `+
 			`SELECT '`+taskPath+`', '`+bugJsonName+`', '`+version+`' WHERE NOT EXISTS `+
-			`(SELECT * from mayaffect WHERE taskPath='`+taskPath+`' AND bugJsonName='`+bugJsonName+`' AND version='`+version+`');`)
+			`(SELECT * from affversion WHERE taskPath='`+taskPath+`' AND bugJsonName='`+bugJsonName+`' AND version='`+version+`');`)
 		mutex.Unlock()
 		if err != nil {
-			panic("[MayAffect]insert bug error: " + err.Error())
+			panic("[doVerify]insert bug error: " + err.Error())
 		}
 	}
 }
