@@ -1,19 +1,20 @@
-// Package oracle: check impo
+// Package oracle: check results to see if there is a logical bug according to implication oracle
 package oracle
 
 import "github.com/qaqcatz/impomysql/connector"
 
-// Check: check impo
-func Check(originResult *connector.Result, newResult *connector.Result, isUpper bool) bool {
+// Check: check results to see if there is a logical bug according to implication oracle.
+// return false if there is a logical bug, otherwise return true.
+func Check(originResult *connector.Result, mutatedResult *connector.Result, isUpper bool) bool {
 	// ignore error
 	isErr1 := (originResult.Err != nil)
-	isErr2 := (newResult.Err != nil)
+	isErr2 := (mutatedResult.Err != nil)
 	if isErr1 || isErr2 {
 		return true
 	}
 
 	empty1 := originResult.IsEmpty()
-	empty2 := newResult.IsEmpty()
+	empty2 := mutatedResult.IsEmpty()
 	if empty1 || empty2 {
 		// empty1&&!empty2, !empty1&&empty2, empty1&&empty2
 		if (empty1 && empty2) {
@@ -29,23 +30,23 @@ func Check(originResult *connector.Result, newResult *connector.Result, isUpper 
 		}
 	}
 
-	if len(originResult.ColumnNames) != len(newResult.ColumnNames) {
+	if len(originResult.ColumnNames) != len(mutatedResult.ColumnNames) {
 		return false
 	}
 	// Due to the difference between the restored sql and the original sql,
 	// we can not compare compare column names and types. (consider value select)
 	//for i, _ := range originResult.ColumnNames {
-	//	if originResult.ColumnNames[i] != newResult.ColumnNames[i] {
+	//	if originResult.ColumnNames[i] != mutatedResult.ColumnNames[i] {
 	//		return false
 	//	}
-	//	if originResult.ColumnTypes[i] != newResult.ColumnTypes[i] {
+	//	if originResult.ColumnTypes[i] != mutatedResult.ColumnTypes[i] {
 	//		return false
 	//	}
 	//}
 
 	// Rows -> []string
 	res1 := originResult.FlatRows()
-	res2 := newResult.FlatRows()
+	res2 := mutatedResult.FlatRows()
 
 	if !isUpper {
 		// negative

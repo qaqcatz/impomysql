@@ -287,8 +287,8 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		logger.Error("read ddl error: " + err.Error())
 		return nil, errors.Wrap(err, "[RunTask]read ddl error")
 	}
-	ddlSqls := ExtractSQL(string(ddlData))
-	err = InitDDLSqls(ddlSqls, conn)
+	ddlSqls := connector.ExtractSQL(string(ddlData))
+	err = conn.InitDBWithDDL(ddlSqls)
 	if err != nil {
 		logger.Error("init ddl sqls error: " + err.Error())
 		return nil, err
@@ -300,7 +300,7 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		logger.Error("read dml error: " + err.Error())
 		return nil, errors.Wrap(err, "[RunTask]read dml error")
 	}
-	dmlSqls := ExtractSQL(string(dmlData))
+	dmlSqls := connector.ExtractSQL(string(dmlData))
 	// **************************************************
 	endInitTime := time.Now().String()
 	// end 1

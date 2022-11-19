@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"strconv"
 	"time"
 )
@@ -127,7 +128,6 @@ func (conn *Connector) ExecSQL(sql string) *Result {
 		}
 		result.Rows = append(result.Rows, dataS)
 	}
-
 	if rows.Err() != nil {
 		return &Result{
 			Err: errors.Wrap(rows.Err(), "[Connector.ExecSQL]rows error"),
@@ -154,6 +154,35 @@ func (conn *Connector) InitDB() error {
 	result = conn.ExecSQL("USE " + conn.DbName)
 	if result.Err != nil {
 		return result.Err
+	}
+	return nil
+}
+
+// Connector.InitDBWithDDL: init database and execute ddl sqls
+func (conn *Connector) InitDBWithDDL(ddlSqls []*EachSql) error {
+	err := conn.InitDB()
+	if err != nil {
+		return err
+	}
+	for _, ddlSql := range ddlSqls {
+		result := conn.ExecSQL(ddlSql.Sql)
+		if result.Err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Connector.InitDBWithDDLPath: init database and execute ddl sqls from ddlPath
+func (conn *Connector) InitDBWithDDLPath(ddlPath string) error {
+	ddlData, err := ioutil.ReadFile(ddlPath)
+	if err != nil {
+		return errors.Wrap(err, "[Connector.InitDBWithDDLPath]read ddl error")
+	}
+	ddlSqls := ExtractSQL(string(ddlData))
+	err = conn.InitDBWithDDL(ddlSqls)
+	if err != nil {
+		return err
 	}
 	return nil
 }

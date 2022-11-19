@@ -24,6 +24,19 @@ type BugReport struct {
 	MutatedResult  *connector.Result `json:"-"`
 }
 
+func NewBugReport(bugJsonPath string) (*BugReport, error) {
+	bugData, err := ioutil.ReadFile(bugJsonPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "[NewBugReport]read bug error")
+	}
+	var bugT BugReport
+	err = json.Unmarshal(bugData, &bugT)
+	if err != nil {
+		return nil, errors.Wrap(err, "[NewBugReport]unmarshal bug error")
+	}
+	return &bugT, nil
+}
+
 func (bugReport *BugReport) ToString() string {
 	str := "**************************************************\n"
 	str += "[MutationName] " + bugReport.MutationName + "\n"

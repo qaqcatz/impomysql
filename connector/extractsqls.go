@@ -1,12 +1,6 @@
-package task
+package connector
 
-import (
-	"github.com/pkg/errors"
-	"github.com/qaqcatz/impomysql/connector"
-	"strconv"
-)
-
-type RdSql struct {
+type EachSql struct {
 	Id  int    `json:"id"`
 	Sql string `json:"sql"`
 }
@@ -15,8 +9,8 @@ type RdSql struct {
 //   - ignore the ';' in ``, '', "";
 //   - ignore the escaped characters in ``, '', "";
 // Note that: Comments cannot have ';'
-func ExtractSQL(s string) []*RdSql {
-	res := make([]*RdSql, 0)
+func ExtractSQL(s string) []*EachSql {
+	res := make([]*EachSql, 0)
 	start := 0
 	flag := -1
 	for i := 0; i < len(s); i++ {
@@ -51,7 +45,7 @@ func ExtractSQL(s string) []*RdSql {
 			}
 		case ';':
 			if flag == -1 {
-				res = append(res, &RdSql{
+				res = append(res, &EachSql{
 					Id:  len(res),
 					Sql: s[start : i+1],
 				})
@@ -62,19 +56,4 @@ func ExtractSQL(s string) []*RdSql {
 		}
 	}
 	return res
-}
-
-// InitDDLSqls: init database and execute ddl sqls
-func InitDDLSqls(ddlSqls []*RdSql, conn *connector.Connector) error {
-	err := conn.InitDB()
-	if err != nil {
-		return errors.Wrap(err, "[InitDDLSqls]init database error")
-	}
-	for i, ddlSql := range ddlSqls {
-		result := conn.ExecSQL(ddlSql.Sql)
-		if result.Err != nil {
-			return errors.Wrap(result.Err, "[InitDDLSqls]exec ddl sql " + strconv.Itoa(i) + " error")
-		}
-	}
-	return nil
 }
