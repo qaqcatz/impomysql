@@ -576,14 +576,50 @@ Run `affversion`:
 
 ```shell
 ./impomysql affversion ./output/mysql 5.7 root^123456^127.0.0.1^13307^TEST 8 8.0.30
+# [Warning] /home/hzy/hzy/projects/db/impomysql/output/mysql/task-0/bugs/bug-0-21-FixMHaving1U.json error! May be some features are not compatible
+# [Warning] /home/hzy/hzy/projects/db/impomysql/output/mysql/task-6/bugs/bug-0-84-FixMHaving1U.json error! May be some features are not compatible
 ```
 
 `affversion` will verify whether the logical bugs on mysql 8.0.30 can be reproduced on mysql 5.7.
 
+You will also see 2 warnings, they mean that `task-0/bugs/bug-0-21-FixMHaving1U.json` and `task-6/bugs/bug-0-84-FixMHaving1U.json` have some incompatible features and cannot execute on mysql 5.7.
+
 See `./output/mysql/affversion.db`:
 
 ```shell
-wait, these sql failed in mysql 5.7 because of some features, we need to simplfy them first!
-todo
+sqlite> select * from affversion;
+taskPath                                                 bugJsonName                 version   
+-------------------------------------------------------  --------------------------  ----------
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso            
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json  8.0.30    
+/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso  8.0.30 
 ```
 
+Nothing changes. It means that all logical bugs on mysql 8.0.30 cannot be reproduced on mysql 5.7. You can manually verify it yourself.
+
+> You may noticed that if a sql has some redundant features which are incompatible with the old version, it will interfere with our judgment.
+>
+> Therefore, it is recommended to simplify the sql first.
+
+You may need to locate the root cause of a bug on git commits, We will provide some dockerfiles for compiling the DBMSs in the future.
+
+### 4.2 sqlsim
+
+Nobody likes these sqls, obviously we need to simplify them:
+
+```sql
+-- OriginalSql
+WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING (((CHARSET(`f1`)) NOT IN (SELECT `col_float_undef_signed` FROM `table_3_utf8_2` USE INDEX (`col_decimal(40, 20)_key_signed`, `col_decimal(40, 20)_key_signed`))) IS FALSE) IS FALSE ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
+-- MutatedSql
+WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING 1 ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
+
+```
+
+Another reason, as we introduced in **4.1 affversion**, is that redundant incompatible features may interfere with bug localization.
+
+> todo

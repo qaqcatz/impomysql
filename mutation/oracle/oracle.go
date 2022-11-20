@@ -1,16 +1,22 @@
 // Package oracle: check results to see if there is a logical bug according to implication oracle
 package oracle
 
-import "github.com/qaqcatz/impomysql/connector"
+import (
+	"github.com/pkg/errors"
+	"github.com/qaqcatz/impomysql/connector"
+)
 
 // Check: check results to see if there is a logical bug according to implication oracle.
 // return false if there is a logical bug, otherwise return true.
-func Check(originResult *connector.Result, mutatedResult *connector.Result, isUpper bool) bool {
+//
+// Note that implication oracle cannot support error oracle.
+// You cannot have any errors in your results, otherwise we will return an error
+func Check(originResult *connector.Result, mutatedResult *connector.Result, isUpper bool) (bool, error) {
 	// ignore error
 	isErr1 := (originResult.Err != nil)
 	isErr2 := (mutatedResult.Err != nil)
 	if isErr1 || isErr2 {
-		return true
+		return true, errors.New("[Check]impo cannot support error oracle")
 	}
 
 	empty1 := originResult.IsEmpty()
@@ -18,20 +24,20 @@ func Check(originResult *connector.Result, mutatedResult *connector.Result, isUp
 	if empty1 || empty2 {
 		// empty1&&!empty2, !empty1&&empty2, empty1&&empty2
 		if (empty1 && empty2) {
-			return true
+			return true, nil
 		}
 		// origin < new
 		if (empty1) {
 			// empty1&&!empty2
-			return isUpper;
+			return isUpper, nil;
 		} else {
 			// !empty1&&empty2
-			return !isUpper;
+			return !isUpper, nil;
 		}
 	}
 
 	if len(originResult.ColumnNames) != len(mutatedResult.ColumnNames) {
-		return false
+		return false, nil
 	}
 	// Due to the difference between the restored sql and the original sql,
 	// we can not compare compare column names and types. (consider value select)
@@ -72,9 +78,9 @@ func Check(originResult *connector.Result, mutatedResult *connector.Result, isUp
 				mp[res1[i]] = num - 1
 			}
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }

@@ -242,25 +242,30 @@ func doVerify(version string, affVersionDB *sql.DB,
 		panic(err)
 	}
 	for _, bugJsonName := range bugGroup {
-		bug, err := task.NewBugReport(path.Join(taskPath, "bugs", bugJsonName))
+		bugJsonPath := path.Join(taskPath, "bugs", bugJsonName)
+		bug, err := task.NewBugReport(bugJsonPath)
 		if err != nil {
 			panic(err)
 		}
 		originalResult := conn.ExecSQL(bug.OriginalSql)
 		mutatedResult := conn.ExecSQL(bug.MutatedSql)
-		if oracle.Check(originalResult, mutatedResult, bug.IsUpper) {
-			continue
-		}
+		check, err := oracle.Check(originalResult, mutatedResult, bug.IsUpper)
 		mutex.Lock()
-		// INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
-		// WHERE NOT EXISTS
-		// (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
-		_, err = affVersionDB.Exec(`INSERT INTO affversion (taskPath, bugJsonName, version) `+
-			`SELECT '`+taskPath+`', '`+bugJsonName+`', '`+version+`' WHERE NOT EXISTS `+
-			`(SELECT * from affversion WHERE taskPath='`+taskPath+`' AND bugJsonName='`+bugJsonName+`' AND version='`+version+`');`)
-		mutex.Unlock()
 		if err != nil {
-			panic("[doVerify]insert bug error: " + err.Error())
+			fmt.Println("[Warning]", bugJsonPath, "error! May be some features are not compatible")
+		} else if !check {
+			// reproducible
+
+			// INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
+			// WHERE NOT EXISTS
+			// (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
+			_, err = affVersionDB.Exec(`INSERT INTO affversion (taskPath, bugJsonName, version) `+
+				`SELECT '`+taskPath+`', '`+bugJsonName+`', '`+version+`' WHERE NOT EXISTS `+
+				`(SELECT * from affversion WHERE taskPath='`+taskPath+`' AND bugJsonName='`+bugJsonName+`' AND version='`+version+`');`)
+			if err != nil {
+				panic("[doVerify]insert bug error: " + err.Error())
+			}
 		}
+		mutex.Unlock()
 	}
 }

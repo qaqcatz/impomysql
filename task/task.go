@@ -399,7 +399,11 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 			mutatedResult := mutateUnit.ExecResult
 
 			//   2.3 use oracle.Check to detect logical bugs
-			if !oracle.Check(originalResult, mutatedResult, isUpper) {
+			check, err := oracle.Check(originalResult, mutatedResult, isUpper)
+			if err != nil {
+				return nil, err
+			}
+			if !check {
 				// logical bug!!!
 				bugId := taskResult.ImpoBugsNum
 				taskResult.ImpoBugsNum += 1
