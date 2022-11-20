@@ -2,6 +2,7 @@ package tool
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
@@ -126,7 +127,20 @@ func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int
 	// (3) verify each group in parallel
 	var waitgroup sync.WaitGroup
 	var mutex sync.Mutex
+	total := len(bugGroups)
+	cur := 0
+	i := 0
 	for taskPath, bugGroup := range bugGroups {
+
+		// rate
+		if cur > total/20 {
+			cur = 0
+			fmt.Println("[Rate]", i, "/", total)
+		} else {
+			cur += 1
+		}
+		i += 1
+
 		// wait for a free connector
 		conn := <- threadPool
 		waitgroup.Add(1)
