@@ -5,10 +5,13 @@ type EachSql struct {
 	Sql string `json:"sql"`
 }
 
-// ExtractSQL: Extract sql statements by ';':
-//   - ignore the ';' in ``, '', "";
-//   - ignore the escaped characters in ``, '', "";
-// Note that: Comments cannot have ';'
+// ExtractSQL: s is a sqls string, each sql statement is separated by ';' in s.
+// We will extract each sql statement into []*EachSql.
+//
+// Note that:
+//   - we will ignore the ';' in ``, '', "";
+//   - we will ignore the escaped characters in ``, '', "";
+//   - your comments cannot have ';'
 func ExtractSQL(s string) []*EachSql {
 	res := make([]*EachSql, 0)
 	start := 0

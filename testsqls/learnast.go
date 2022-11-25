@@ -1,14 +1,14 @@
-package learnast
+package testsqls
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"fmt"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/format"
 	"github.com/pingcap/tidb/parser/test_driver"
 	_ "github.com/pingcap/tidb/parser/test_driver"
+	"github.com/pkg/errors"
 	"reflect"
 )
 

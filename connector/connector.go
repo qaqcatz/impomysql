@@ -12,7 +12,6 @@ import (
 
 // Connector: connect to MySQL, execute raw sql statements, return raw execution result or error.
 type Connector struct {
-	DSN             string
 	Host            string
 	Port            int
 	Username        string
@@ -30,7 +29,6 @@ func NewConnector(host string, port int, username string, password string, dbnam
 		return nil, errors.Wrap(err, "[NewConnector]open dsn error")
 	}
 	conn := &Connector{
-		DSN:             dsn,
 		Host:            host,
 		Port:            port,
 		Username:        username,

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/impomysql/tool"
+	"github.com/qaqcatz/impomysql/tasktool/affversion"
 	"log"
 	"os"
 	"strconv"
@@ -10,8 +10,7 @@ import (
 
 // use task taskConfigPath
 // or  taskpool taskConfigPoolPath
-// or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tool.MayAffect
-// or  dropdblike dsn like, see tool.DropDBLike
+// or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tasktool.MayAffect
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -24,10 +23,8 @@ func main() {
 		doTaskPool(args)
 	case "affversion":
 		doAffVersion(args)
-	case "dropdblike":
-		doDropDBLike(args)
 	default:
-		log.Fatal("please use task, taskpool, affversion, dropdblike")
+		log.Fatal("please use task, taskpool, affversion")
 	}
 }
 
@@ -78,20 +75,8 @@ func doAffVersion(args []string) {
 	if len(args) > 6 {
 		whereVersionEQ = args[6]
 	}
-	err = tool.AffVersion(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
+	err = affversion.AffVersion(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
 	if err != nil {
 		log.Fatal("[doAffVersion]affect version error: ", err)
-	}
-}
-
-func doDropDBLike(args []string) {
-	if len(args) <= 3 {
-		log.Fatal("[doDropDBLike]len(args) <= 3")
-	}
-	dsn := args[2]
-	like := args[3]
-	err := tool.DropDBLike(dsn, like)
-	if err != nil {
-		log.Fatal("[doDropDBLike]drop db like error: ", err)
 	}
 }

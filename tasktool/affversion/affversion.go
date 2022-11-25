@@ -1,4 +1,4 @@
-package tool
+package affversion
 
 import (
 	"database/sql"
@@ -62,7 +62,7 @@ func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int
 	if err != nil {
 		return errors.Wrap(err, "[AffVersion]path abs error")
 	}
-	// create connectors
+	// create connector pool
 	dsnUnits := strings.Split(dsn, "^")
 	if len(dsnUnits) != 5 {
 		return errors.New("[AffVersion]len(dsnUnits) != 5: "+dsn)
@@ -76,13 +76,9 @@ func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int
 		return errors.Wrap(err, "[AffVersion]parse port error")
 	}
 	dbPrefix := dsnUnits[4]
-	threadPool := make(chan *connector.Connector, threadNum)
-	for i := 0; i < threadNum; i++ {
-		conn, err := connector.NewConnector(host, port, username, password, dbPrefix+strconv.Itoa(i))
-		if err != nil {
-			return err
-		}
-		threadPool <- conn
+	connPool, err := connector.NewConnectorPool(host, port, username, password, dbPrefix, threadNum)
+	if err != nil {
+		return err
 	}
 	// (1) init affversion.db:
 	affVersionDBPath := path.Join(dbmsOutputPath, "affversion.db")
@@ -142,9 +138,9 @@ func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int
 		i += 1
 
 		// wait for a free connector
-		conn := <- threadPool
+		conn := connPool.WaitForFree()
 		waitgroup.Add(1)
-		go doVerify(version, affVersionDB, &waitgroup, &mutex, conn, threadPool, taskPath, bugGroup)
+		go doVerify(version, affVersionDB, &waitgroup, &mutex, conn, connPool, taskPath, bugGroup)
 	}
 	waitgroup.Wait()
 	return nil
@@ -228,11 +224,11 @@ func pathExists(path string) (bool, error) {
 
 func doVerify(version string, affVersionDB *sql.DB,
 	waitGroup *sync.WaitGroup, mutex *sync.Mutex,
-	conn *connector.Connector, threadPool chan *connector.Connector,
+	conn *connector.Connector, connPool *connector.ConnectorPool,
 	taskPath string, bugGroup []string) {
 
 	defer func() {
-		threadPool <- conn
+		connPool.BackToPool(conn)
 		waitGroup.Done()
 	}()
 

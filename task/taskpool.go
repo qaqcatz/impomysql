@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -158,15 +157,11 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 	logger.SetLevel(logrus.InfoLevel)
 	// 1.3 create thread pool with size ThreadNum, fill with *connector.Connector,
 	// the database name of each connector is config.DbPrefix + thread id
-	threadPool := make(chan *connector.Connector, config.ThreadNum)
-	for i := 0; i < config.ThreadNum; i++ {
-		conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password,
-			config.DbPrefix+strconv.Itoa(i))
-		if err != nil {
-			logger.Error("create connector error: " + err.Error())
-			return nil, err
-		}
-		threadPool <- conn
+	connPool, err := connector.NewConnectorPool(config.Host, config.Port, config.Username, config.Password,
+		config.DbPrefix, config.ThreadNum)
+	if err != nil {
+		logger.Error("create connector pool error: " + err.Error())
+		return nil, err
 	}
 	// **************************************************
 	// end 1
@@ -189,7 +184,7 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 	for {
 
 		// wait for a free connector
-		conn := <-threadPool
+		conn := connPool.WaitForFree()
 
 		// max time limit
 		if config.MaxTimeS > 0 && time.Since(startTime) >= time.Duration(config.MaxTimeS)*time.Second {
@@ -216,7 +211,7 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 			logger.Error("task", taskId, " connector " + conn.DbName + " SELECT 1 failed, database may crash: ", result.Err)
 			break
 		} else {
-			go PrepareAndRunTask(config, logger, threadPool, conn, taskPoolResult, taskId)
+			go PrepareAndRunTask(config, logger, connPool, conn, taskPoolResult, taskId)
 		}
 	}
 	// save taskpool result.
@@ -236,14 +231,14 @@ func RunTaskPool(config *TaskPoolConfig) (*TaskPoolResult, error) {
 // PrepareAndRunTask:
 //   1. create and save task config
 //   2. run task
-func PrepareAndRunTask(config *TaskPoolConfig, logger *logrus.Logger, threadPool chan *connector.Connector,
+func PrepareAndRunTask(config *TaskPoolConfig, logger *logrus.Logger, connPool *connector.ConnectorPool,
 	conn *connector.Connector, taskPoolResult *TaskPoolResult, taskId int) {
 
 	defer func() {
 		taskPoolResult.lock.Lock()
 		taskPoolResult.FinishedTaskNum += 1
 		taskPoolResult.lock.Unlock()
-		threadPool <- conn
+		connPool.BackToPool(conn)
 	}()
 
 	logger.Info("Run task", taskId)

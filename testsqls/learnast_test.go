@@ -1,16 +1,15 @@
-package learnast
+package testsqls
 
 import (
-	"github.com/qaqcatz/impomysql/testsqls"
 	"testing"
 )
 
 func testLearnASTCommon(t *testing.T, sql string) {
-	if err := testsqls.InitTableCOMPANY(""); err != nil {
+	if err := InitTableCOMPANY(""); err != nil {
 		t.Fatalf("%+v", err)
 	}
 
-	if err := testsqls.SQLExec(sql, ""); err != nil {
+	if err := SQLExec(sql, ""); err != nil {
 		t.Fatalf("%+v", err)
 	}
 	if sql, err := learnAST(sql); err != nil {
@@ -21,104 +20,104 @@ func testLearnASTCommon(t *testing.T, sql string) {
 }
 
 func TestLearnASTAGG(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLAGG);
+	testLearnASTCommon(t, SQLAGG);
 }
 
 func TestLearnASTWindow(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLWindow);
+	testLearnASTCommon(t, SQLWindow);
 }
 
 func TestLearnASTSelectValue(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSelectValue);
+	testLearnASTCommon(t, SQLSelectValue);
 }
 func TestLearnASTSelectValue2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSelectValue2);
+	testLearnASTCommon(t, SQLSelectValue2);
 }
 
 func TestLearnASTSelectValue3(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSelectValue3);
+	testLearnASTCommon(t, SQLSelectValue3);
 }
 
 func TestLearnASTSubQuery(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSubQuery);
+	testLearnASTCommon(t, SQLSubQuery);
 }
 
 func TestLearnASTSubQuery2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSubQuery2);
+	testLearnASTCommon(t, SQLSubQuery2);
 }
 
 func TestLearnASTSubQuery3(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSubQuery3);
+	testLearnASTCommon(t, SQLSubQuery3);
 }
 
 func TestLearnASTSubQuery4(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSubQuery4);
+	testLearnASTCommon(t, SQLSubQuery4);
 }
 
 func TestLearnASTSubQuery5(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLSubQuery5);
+	testLearnASTCommon(t, SQLSubQuery5);
 }
 
 func TestLearnASTJOIN(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN);
+	testLearnASTCommon(t, SQLJOIN);
 }
 
 func TestLearnASTJOIN2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN2);
+	testLearnASTCommon(t, SQLJOIN2);
 }
 
 func TestLearnASTJOIN3(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN3);
+	testLearnASTCommon(t, SQLJOIN3);
 }
 
 func TestLearnASTJOIN4(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN4);
+	testLearnASTCommon(t, SQLJOIN4);
 }
 
 func TestLearnASTJOIN5(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN5);
+	testLearnASTCommon(t, SQLJOIN5);
 }
 
 func TestLearnASTJOIN6(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLJOIN6);
+	testLearnASTCommon(t, SQLJOIN6);
 }
 
 func TestLearnASTLIMIT(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLLIMIT);
+	testLearnASTCommon(t, SQLLIMIT);
 }
 
 func TestLearnASTLIMIT2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLLIMIT2);
+	testLearnASTCommon(t, SQLLIMIT2);
 }
 
 func TestLearnASTUNION(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLUNION);
+	testLearnASTCommon(t, SQLUNION);
 }
 
 func TestLearnASTUNION2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLUNION2);
+	testLearnASTCommon(t, SQLUNION2);
 }
 
 func TestLearnASTWITH(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLWITH);
+	testLearnASTCommon(t, SQLWITH);
 }
 
 func TestLearnASTWITH2(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLWITH2);
+	testLearnASTCommon(t, SQLWITH2);
 }
 
 func TestLearnASTIN(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLIN);
+	testLearnASTCommon(t, SQLIN);
 }
 
 func TestLearnASTWHERE(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLWHERE);
+	testLearnASTCommon(t, SQLWHERE);
 }
 
 func TestLearnASTLIKE(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLLIKE);
+	testLearnASTCommon(t, SQLLIKE);
 }
 
 func TestLearnASTRegExp(t *testing.T) {
-	testLearnASTCommon(t, testsqls.SQLRegExp);
+	testLearnASTCommon(t, SQLRegExp);
 }
