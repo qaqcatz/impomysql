@@ -73,7 +73,7 @@ func SqlSimTask(config *task.TaskConfig) error {
 // SqlSim:
 //
 // 1. simplify dml: try to remove each node in original/mutated sql,
-// simplify if the result does not change.
+// simplify if the result does not change or the implication oracle can still detect the bug.
 //
 // 2. simplify ddl: try to remove each node in ddl sql,
 // simplify if the implication oracle can still detect the bug.
@@ -98,12 +98,8 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	}
 
 	// 1. simplify dml: try to remove each node in original/mutated sql,
-	// simplify if the result does not change.
-	bug.OriginalSql, err = SimDML(bug.OriginalSql, bug.OriginalResult, conn)
-	if err != nil {
-		return err
-	}
-	bug.MutatedSql, err = SimDML(bug.MutatedSql, bug.MutatedResult, conn)
+	// simplify if the result does not change or the implication oracle can still detect the bug.
+	err = SimDML(bug, conn)
 	if err != nil {
 		return err
 	}
@@ -122,26 +118,21 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	return nil
 }
 
-var SimDMLFuncs = []func(string)(string, error) {
+var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector) error {
 	rmWith,
+	rmUnion,
+	rmHint,
+	rmOrderBy,
 }
 
-func SimDML(sql string, result *connector.Result,
-	conn *connector.Connector) (string, error) {
-	for _, simDMLfunc := range SimDMLFuncs {
-		tempSql, err := simDMLfunc(sql)
+func SimDML(bug *task.BugReport, conn *connector.Connector) error {
+	for _, simDMLFunc := range SimDMLFuncs {
+		err := simDMLFunc(bug, conn)
 		if err != nil {
-			return "", err
-		}
-		tempResult := conn.ExecSQL(tempSql)
-		if tempResult.Err == nil {
-			cmp, err := result.CMP(tempResult)
-			if err == nil && cmp == 0 {
-				sql = tempSql
-			}
+			return err
 		}
 	}
-	return sql, nil
+	return nil
 }
 
 func pathExists(path string) (bool, error) {

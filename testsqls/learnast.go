@@ -116,7 +116,9 @@ func printSetOprSelectList(in *ast.SetOprSelectList) {
 
 func printSelectStmt(in *ast.SelectStmt) {
 	fmt.Print(" [Distinct] ", in.Distinct, " [AfterSetOperator] ", in.AfterSetOperator)
+	fmt.Print(" [Hint] ", in.TableHints)
 	fmt.Print(" [IsInBraces] ", in.IsInBraces)
+	fmt.Print(" [OrderBy] ", in.OrderBy)
 }
 
 func printSubqueryExpr(in *ast.SubqueryExpr) {
@@ -194,8 +196,14 @@ func printTableSource(in *ast.TableSource) {
 
 func printTableName(in *ast.TableName) {
 	fmt.Print(" [Schema] ", in.Schema, " [Name] ", in.Name,
-		" [DBInfo] ", in.DBInfo, " [TableInfo] ", in.TableInfo, " [IndexHints] ", in.IndexHints,
+		" [DBInfo] ", in.DBInfo, " [TableInfo] ", in.TableInfo,
 		" [PartitionNames] ", in.PartitionNames, " [TableSample] ", in.TableSample, " [AsOf] ", in.AsOf)
+	if in.IndexHints != nil {
+		fmt.Print(" [IndexHints] ", len(in.IndexHints), " : ")
+		for _, hint := range in.IndexHints {
+			fmt.Print(hint, " ")
+		}
+	}
 }
 
 func printFieldList(in *ast.FieldList) {

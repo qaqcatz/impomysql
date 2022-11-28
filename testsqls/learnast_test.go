@@ -125,3 +125,11 @@ func TestLearnASTLIKE(t *testing.T) {
 func TestLearnASTRegExp(t *testing.T) {
 	testLearnASTCommon(t, SQLRegExp);
 }
+
+func TestLearnASTHint(t *testing.T) {
+	testLearnASTCommon(t, SQLHint)
+}
+
+func TestLearnASTOrderBy(t *testing.T) {
+	testLearnASTCommon(t, SQLOrderBy)
+}

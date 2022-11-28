@@ -9,8 +9,8 @@ import (
 	"github.com/qaqcatz/impomysql/task"
 )
 
-// rmHint: remove optimization hint
-func rmHint(bug *task.BugReport, conn *connector.Connector) error {
+// rmOrderBy: remove ORDER BY
+func rmOrderBy(bug *task.BugReport, conn *connector.Connector) error {
 	sql2 := []*string {
 		&(bug.OriginalSql),
 		&(bug.MutatedSql),
@@ -20,7 +20,7 @@ func rmHint(bug *task.BugReport, conn *connector.Connector) error {
 		&(bug.MutatedResult),
 	}
 	for i := 0; i < 2; i++ {
-		tempSql, err := rmHintUnit(*sql2[i])
+		tempSql, err := rmOrderByUnit(*sql2[i])
 		if err != nil {
 			return err
 		}
@@ -37,40 +37,39 @@ func rmHint(bug *task.BugReport, conn *connector.Connector) error {
 	return nil
 }
 
-type rmHintVisitor struct {
+type rmOrderByVisitor struct {
 }
 
-func (v *rmHintVisitor) Enter(in ast.Node) (ast.Node, bool) {
+func (v *rmOrderByVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	switch in.(type) {
-	case *ast.TableName:
-		tb := in.(*ast.TableName)
-		tb.IndexHints = make([]*ast.IndexHint, 0)
+	case *ast.SelectStmt:
+		sel := in.(*ast.SelectStmt)
+		sel.OrderBy = nil
 	}
 	return in, false
 }
 
-func (v *rmHintVisitor) Leave(in ast.Node) (ast.Node, bool) {
+func (v *rmOrderByVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-// rmHint: remove optimization hint
-func rmHintUnit(sql string) (string, error) {
+func rmOrderByUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmHintUnit]parse error")
+		return "", errors.Wrap(err, "[rmOrderByUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmHintUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[rmOrderByUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
-	v := &rmHintVisitor{}
+	v := &rmOrderByVisitor{}
 	(*rootNode).Accept(v)
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[rmHintUnit]restore error")
+		return "", errors.Wrap(err, "[rmOrderByUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }

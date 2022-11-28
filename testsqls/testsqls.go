@@ -77,7 +77,7 @@ func InitTableCOMPANY(DBMS string) error {
 	if result.Err != nil {
 		return result.Err
 	}
-	result = conn.ExecSQL("CREATE TABLE COMPANY (ID INT, NAME TEXT, AGE INT, CITY TEXT)")
+	result = conn.ExecSQL("CREATE TABLE COMPANY (ID INT, NAME TEXT, AGE INT, CITY TEXT, KEY(ID), KEY(AGE))")
 	if result.Err != nil {
 		return result.Err
 	}
@@ -142,4 +142,6 @@ const (
 	SQLRegExp = "SELECT * FROM COMPANY WHERE 'abc' NOT REGEXP '^A[B]*C$'"
 	SQLBetween = "SELECT * FROM COMPANY WHERE ID BETWEEN 1 AND 3"
 	SQLBetween2 = "SELECT * FROM COMPANY WHERE ID BETWEEN '1' AND '3'"
+	SQLHint = "SELECT ID, AGE FROM COMPANY USE INDEX(ID, AGE)"
+	SQLOrderBy = "SELECT ID, NAME FROM COMPANY ORDER BY ID"
 )

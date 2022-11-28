@@ -5,17 +5,46 @@ import (
 	"github.com/pingcap/tidb/parser/ast"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
+	"github.com/qaqcatz/impomysql/connector"
+	"github.com/qaqcatz/impomysql/task"
 )
 
 // rmWith: remove top WITH(non-recursive) and SELECT
-func rmWith(sql string) (string, error) {
+func rmWith(bug *task.BugReport, conn *connector.Connector) error {
+	sql2 := []*string {
+		&(bug.OriginalSql),
+		&(bug.MutatedSql),
+	}
+	res2 := []**connector.Result {
+		&(bug.OriginalResult),
+		&(bug.MutatedResult),
+	}
+	for i := 0; i < 2; i++ {
+		tempSql, err := rmWithUnit(*sql2[i])
+		if err != nil {
+			return err
+		}
+
+		tempResult := conn.ExecSQL(tempSql)
+		if tempResult.Err == nil {
+			cmp, err := (*res2[i]).CMP(tempResult)
+			if err == nil && cmp == 0 {
+				*sql2[i] = tempSql
+				*res2[i] = tempResult
+			}
+		}
+	}
+	return nil
+}
+
+func rmWithUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmWith]parse error")
+		return "", errors.Wrap(err, "[rmWithUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmWith]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[rmWithUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
@@ -39,7 +68,7 @@ func rmWith(sql string) (string, error) {
 		case *ast.SetOprStmt, *ast.SelectStmt:
 			simplifiedSql, err := restore(with.CTEs[0].Query.Query)
 			if err != nil {
-				return "", errors.Wrap(err, "[rmWith]restore error")
+				return "", errors.Wrap(err, "[rmWithUnit]restore error")
 			}
 			return string(simplifiedSql), nil
 		}
