@@ -144,4 +144,11 @@ const (
 	SQLBetween2 = "SELECT * FROM COMPANY WHERE ID BETWEEN '1' AND '3'"
 	SQLHint = "SELECT ID, AGE FROM COMPANY USE INDEX(ID, AGE)"
 	SQLOrderBy = "SELECT ID, NAME FROM COMPANY ORDER BY ID"
+	SQLDropTable = "DROP TABLE IF EXISTS CT;"
+	SQLCreateTable = "CREATE TABLE IF NOT EXISTS CT (`pk` int primary key," +
+		"`c1` bigint," +
+		"`c1_u` bigint unsigned," +
+		"key (`c1`)," +
+		"key (`c1_u`)) character set utf8\npartition by hash(pk)\npartitions 2;"
+	SQLINSERT = "INSERT INTO CT VALUES (0,1,1),(1,2,2),(2,3,3);"
 )

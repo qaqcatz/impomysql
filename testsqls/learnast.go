@@ -89,6 +89,7 @@ func PrintNode(in ast.Node) {
 	case *ast.PatternRegexpExpr:
 		printPatternRegexpExpr(in.(*ast.PatternRegexpExpr))
 	default:
+		fmt.Print(" ", reflect.TypeOf(in))
 	}
 }
 

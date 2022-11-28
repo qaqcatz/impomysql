@@ -1,9 +1,6 @@
 package sqlsim
 
 import (
-	"bytes"
-	"github.com/pingcap/tidb/parser/ast"
-	"github.com/pingcap/tidb/parser/format"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
@@ -14,22 +11,13 @@ import (
 	"strings"
 )
 
-// hint
-// order
-// union
-// and, or
-// column alias is not used by other node.
-
 // SqlSimTask:
 //
 // 1. mkdir sqlsim, read bugs and ddl in task path if exists, create connector
 //
 // 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim. see SqlSim.
-func SqlSimTask(config *task.TaskConfig) error {
+func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error {
 	// 1. mkdir sqlsim, read bugs and ddl in task path if exist, create connector
-	sqlSimPath := path.Join(config.GetTaskPath(), "sqlsim")
-	_ = os.Mkdir(sqlSimPath, 0777)
-
 	ddlPath := config.DDLPath
 	bugsPath := config.GetTaskBugsPath()
 	exists, err := pathExists(ddlPath)
@@ -47,7 +35,19 @@ func SqlSimTask(config *task.TaskConfig) error {
 		return nil
 	}
 
-	conn, err := connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
+	sqlSimPath := path.Join(config.GetTaskPath(), "sqlsim")
+	_ = os.Mkdir(sqlSimPath, 0777)
+
+	var conn *connector.Connector = nil
+	if publicConn != nil {
+		conn = publicConn
+	} else {
+		conn, err = connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
+		if err != nil {
+			return err
+		}
+	}
+	err = conn.InitDBWithDDLPath(ddlPath)
 	if err != nil {
 		return err
 	}
@@ -75,15 +75,8 @@ func SqlSimTask(config *task.TaskConfig) error {
 // 1. simplify dml: try to remove each node in original/mutated sql,
 // simplify if the result does not change or the implication oracle can still detect the bug.
 //
-// 2. simplify ddl: try to remove each node in ddl sql,
-// simplify if the implication oracle can still detect the bug.
-//
-// 3. write the simplified ddl and bug(json+log) into sqlsim.
+// 2. write the simplified ddl and bug(json+log) into sqlsim.
 func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJsonPath string) error {
-	err := conn.InitDBWithDDLPath(ddlPath)
-	if err != nil {
-		return err
-	}
 	bug, err := task.NewBugReport(bugJsonPath)
 	if err != nil {
 		return err
@@ -104,16 +97,11 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 		return err
 	}
 
-	// 2. simplify ddl: try to remove each node in ddl sql,
-	// simplify if the implication oracle can still detect the bug.
-	// todo simplify ddl
-
-	// 3. write the simplified ddl and bug(json+log) into sqlsim.
+	// 2. write the simplified ddl and bug(json+log) into sqlsim.
 	err = bug.SaveBugReport(outputPath)
 	if err != nil {
 		return err
 	}
-	// todo save ddl
 
 	return nil
 }
@@ -133,25 +121,4 @@ func SimDML(bug *task.BugReport, conn *connector.Connector) error {
 		}
 	}
 	return nil
-}
-
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, errors.Wrap(err, "[PathExists]file stat error")
-}
-
-func restore(rootNode ast.Node) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
-	err := rootNode.Restore(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "restore error")
-	}
-	return buf.Bytes(), nil
 }

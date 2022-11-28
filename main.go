@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+// todo: use urfave/cli
 // use task taskConfigPath
 // or  taskpool taskPoolConfigPath
 // or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tasktool.MayAffect
@@ -96,7 +97,7 @@ func doSqlSim(args []string) {
 		if err != nil {
 			log.Fatal("[doSqlSim]new task config error: ", err)
 		}
-		err = sqlsim.SqlSimTask(taskConfig)
+		err = sqlsim.SqlSimTask(taskConfig, nil)
 		if err != nil {
 			log.Fatal("[doSqlSim]sqlsim task error: ", err)
 		}
@@ -105,8 +106,10 @@ func doSqlSim(args []string) {
 		if err != nil {
 			log.Fatal("[doSqlSim]new task pool config error: ", err)
 		}
-		// todo
-		log.Fatal("[doSqlSim]todo: ", taskPoolConfig)
+		err = sqlsim.SqlSimTaskPool(taskPoolConfig)
+		if err != nil {
+			log.Fatal("[doSqlSim]sqlsim task pool error: ", err)
+		}
 	default:
 		log.Fatal("[doSqlSim]please use task, taskpool")
 	}

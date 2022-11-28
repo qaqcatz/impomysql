@@ -133,3 +133,25 @@ func TestLearnASTHint(t *testing.T) {
 func TestLearnASTOrderBy(t *testing.T) {
 	testLearnASTCommon(t, SQLOrderBy)
 }
+
+func TestLearnASTCreateAndInsert(t *testing.T) {
+	if err := SQLExec(SQLDropTable, ""); err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if err := SQLExec(SQLCreateTable, ""); err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if sql, err := learnAST(SQLCreateTable); err != nil {
+		t.Fatalf("%+v", err)
+	} else {
+		t.Log(sql)
+	}
+	if err := SQLExec(SQLINSERT, ""); err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if sql, err := learnAST(SQLINSERT); err != nil {
+		t.Fatalf("%+v", err)
+	} else {
+		t.Log(sql)
+	}
+}
