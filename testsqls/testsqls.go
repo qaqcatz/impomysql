@@ -133,6 +133,7 @@ const (
 	SQLWITH2 = "WITH RECURSIVE fibonacci (n, fib_n, next_fib_n) AS " +
 		"(SELECT 1, 0, 1 UNION ALL SELECT n + 1, next_fib_n, fib_n + next_fib_n " +
 		"FROM fibonacci WHERE n < 10 ) SELECT * FROM fibonacci"
+	SQLWITH3 = "WITH XX AS (SELECT * FROM COMPANY UNION ALL SELECT * FROM COMPANY) SELECT * FROM XX"
 	SQLIN = "SELECT 1 IN (1, 2, 3)"
 	SQLIN2 = "SELECT * FROM COMPANY WHERE ID IN (1, 2, 3)"
 	SQLWHERE = "SELECT * FROM COMPANY WHERE TRUE"

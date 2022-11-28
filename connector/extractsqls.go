@@ -1,5 +1,10 @@
 package connector
 
+import (
+	"github.com/pkg/errors"
+	"io/ioutil"
+)
+
 type EachSql struct {
 	Id  int    `json:"id"`
 	Sql string `json:"sql"`
@@ -59,4 +64,13 @@ func ExtractSQL(s string) []*EachSql {
 		}
 	}
 	return res
+}
+
+// ExtractSqlFromPath: extract sql from sql file, see ExtractSQL
+func ExtractSqlFromPath(sqlPath string) ([]*EachSql, error) {
+	sqlData, err := ioutil.ReadFile(sqlPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "[ExtractSqlFromPath]read file error")
+	}
+	return ExtractSQL(string(sqlData)), nil
 }

@@ -3,14 +3,17 @@ package main
 import (
 	"github.com/qaqcatz/impomysql/task"
 	"github.com/qaqcatz/impomysql/tasktool/affversion"
+	"github.com/qaqcatz/impomysql/tasktool/sqlsim"
 	"log"
 	"os"
 	"strconv"
 )
 
 // use task taskConfigPath
-// or  taskpool taskConfigPoolPath
+// or  taskpool taskPoolConfigPath
 // or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tasktool.MayAffect
+// or  sqlsim task taskConfigPath
+// or  sqlsim taskpool taskPoolConfigPath
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -23,8 +26,10 @@ func main() {
 		doTaskPool(args)
 	case "affversion":
 		doAffVersion(args)
+	case "sqlsim":
+		doSqlSim(args)
 	default:
-		log.Fatal("please use task, taskpool, affversion")
+		log.Fatal("[main]please use task, taskpool, affversion, sqlsim")
 	}
 }
 
@@ -78,5 +83,31 @@ func doAffVersion(args []string) {
 	err = affversion.AffVersion(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
 	if err != nil {
 		log.Fatal("[doAffVersion]affect version error: ", err)
+	}
+}
+
+func doSqlSim(args []string) {
+	if len(args) <= 3 {
+		log.Fatal("[doSqlSim]len(args) <= 3")
+	}
+	switch args[2] {
+	case "task":
+		taskConfig, err := task.NewTaskConfig(args[3])
+		if err != nil {
+			log.Fatal("[doSqlSim]new task config error: ", err)
+		}
+		err = sqlsim.SqlSimTask(taskConfig)
+		if err != nil {
+			log.Fatal("[doSqlSim]sqlsim task error: ", err)
+		}
+	case "taskpool":
+		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
+		if err != nil {
+			log.Fatal("[doSqlSim]new task pool config error: ", err)
+		}
+		// todo
+		log.Fatal("[doSqlSim]todo: ", taskPoolConfig)
+	default:
+		log.Fatal("[doSqlSim]please use task, taskpool")
 	}
 }

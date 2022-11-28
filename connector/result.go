@@ -88,3 +88,77 @@ func (result *Result) GetErrorCode() (int, error) {
 		return -1, errors.New("[Result.GetErrorCode]not *mysql.MySQLError " + reflect.TypeOf(rootCause).String())
 	}
 }
+
+// Result.CMP:
+//   -1: another contains this
+//   0: eq
+//   1: this contains another
+//   2: others
+//   error: this.Err or another.Err
+//   do not consider the column name
+func (this *Result) CMP(another *Result) (int, error) {
+	if this.Err != nil {
+		return -2, errors.New("[Result.CMP]this error")
+	}
+	if another.Err != nil {
+		return -2, errors.New("[Result.CMP]another error")
+	}
+
+	empty1 := this.IsEmpty()
+	empty2 := another.IsEmpty()
+	if empty1 || empty2 {
+		// empty1&&!empty2, !empty1&&empty2, empty1&&empty2
+		if (empty1 && empty2) {
+			return 0, nil
+		}
+		if empty1 {
+			// empty1&&!empty2
+			return -1, nil;
+		} else {
+			// !empty1&&empty2
+			return 1, nil;
+		}
+	}
+
+	if len(this.ColumnNames) != len(another.ColumnNames) {
+		return 2, nil
+	}
+
+	res1 := this.FlatRows()
+	res2 := another.FlatRows()
+
+	mp := make(map[string]int)
+	for i := 0; i < len(res2); i++ {
+		if num, ok := mp[res2[i]]; ok {
+			mp[res2[i]] = num + 1
+		} else {
+			mp[res2[i]] = 1
+		}
+	}
+	allInAnother := true
+	for i := 0; i < len(res1); i++ {
+		if num, ok := mp[res1[i]]; ok {
+			if num <= 1 {
+				delete(mp, res1[i])
+			} else {
+				mp[res1[i]] = num - 1
+			}
+		} else {
+			allInAnother = false
+		}
+	}
+
+	if allInAnother {
+		if len(mp) == 0 {
+			return 0, nil
+		} else {
+			return -1, nil
+		}
+	} else {
+		if len(mp) == 0 {
+			return 1, nil
+		} else {
+			return 2, nil
+		}
+	}
+}

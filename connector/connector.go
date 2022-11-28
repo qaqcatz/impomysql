@@ -5,7 +5,6 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"strconv"
 	"time"
 )
@@ -173,11 +172,10 @@ func (conn *Connector) InitDBWithDDL(ddlSqls []*EachSql) error {
 
 // Connector.InitDBWithDDLPath: init database and execute ddl sqls from ddlPath
 func (conn *Connector) InitDBWithDDLPath(ddlPath string) error {
-	ddlData, err := ioutil.ReadFile(ddlPath)
+	ddlSqls, err := ExtractSqlFromPath(ddlPath)
 	if err != nil {
-		return errors.Wrap(err, "[Connector.InitDBWithDDLPath]read ddl error")
+		return err
 	}
-	ddlSqls := ExtractSQL(string(ddlData))
 	err = conn.InitDBWithDDL(ddlSqls)
 	if err != nil {
 		return err

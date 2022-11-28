@@ -106,6 +106,10 @@ func TestLearnASTWITH2(t *testing.T) {
 	testLearnASTCommon(t, SQLWITH2);
 }
 
+func TestLearnASTWITH3(t *testing.T) {
+	testLearnASTCommon(t, SQLWITH3);
+}
+
 func TestLearnASTIN(t *testing.T) {
 	testLearnASTCommon(t, SQLIN);
 }

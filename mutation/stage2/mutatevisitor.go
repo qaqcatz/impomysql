@@ -590,7 +590,7 @@ func (v *MutateVisitor) addCandidate(mutationName string, u int, in ast.Node, fl
 
 func restore(rootNode ast.Node) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, buf)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags | format.RestoreStringWithoutCharset, buf)
 	err := rootNode.Restore(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "restore error")

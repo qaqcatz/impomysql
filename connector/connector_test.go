@@ -20,6 +20,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
+	// create table
 	result := conn.ExecSQL("DROP TABLE IF EXISTS T")
 	if result.Err != nil {
 		t.Fatalf("%+v", result.Err)
@@ -42,6 +43,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 		}
 	}
 
+	// normal
 	result = conn.ExecSQL("SELECT 1+2, ID, NAME, X FROM T;")
 	if result.Err != nil {
 		t.Fatalf("%+v", result.Err)
@@ -49,6 +51,7 @@ func TestConnector_ExecSQL(t *testing.T) {
 		t.Log(result.ToString())
 	}
 
+	// error
 	result = conn.ExecSQL("select 9223372036854775807 + 1")
 	if result.Err != nil {
 		t.Logf("%+v", result.Err)
@@ -70,5 +73,51 @@ func TestConnector_ExecSQL(t *testing.T) {
 		t.Log("error code = " ,errCode)
 	} else {
 		t.Fatalf("%+v", err)
+	}
+
+	// result cmp
+	result1 := conn.ExecSQL("SELECT ID, NAME, X FROM T;")
+	if result1.Err != nil {
+		t.Fatalf("%+v", result1.Err)
+	}
+	result2 := conn.ExecSQL("SELECT ID, NAME, X FROM T WHERE ID != 1;")
+	if result2.Err != nil {
+		t.Fatalf("%+v", result2.Err)
+	}
+	result3 := conn.ExecSQL("SELECT ID, NAME, X FROM T WHERE ID != 2;")
+	if result3.Err != nil {
+		t.Fatalf("%+v", result3.Err)
+	}
+
+	cmp, err := result1.CMP(result1)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if cmp != 0 {
+		t.Fatal("must 0")
+	}
+
+	cmp, err = result1.CMP(result2)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if cmp != 1 {
+		t.Fatal("must 1")
+	}
+
+	cmp, err = result2.CMP(result1)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if cmp != -1 {
+		t.Fatal("must -1")
+	}
+
+	cmp, err = result3.CMP(result2)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	if cmp != 2 {
+		t.Fatal("must 2")
 	}
 }
