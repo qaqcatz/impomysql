@@ -11,7 +11,7 @@
   "zzPath": "./resources/impo.zz.lua",
   "yyPath": "./resources/impo.yy",
   "queriesNum": 25000,
-  "threadNum": 4,
+  "threadNum": 64,
   "maxTasks": 10000,
   "maxTimeS": 86400
 }

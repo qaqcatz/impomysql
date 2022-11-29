@@ -1,6 +1,7 @@
 package sqlsim
 
 import (
+	"fmt"
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
@@ -81,13 +82,19 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	if err != nil {
 		return err
 	}
+	// originalSql / mutatedSql may error, we should return nil but not error.
+	// I already filtered out the error in the task, why? May be a bug of mysql driver...
 	bug.OriginalResult = conn.ExecSQL(bug.OriginalSql)
 	if bug.OriginalResult.Err != nil {
-		return bug.OriginalResult.Err
+		//return bug.OriginalResult.Err
+		fmt.Println(bugJsonPath + "'s originalSql executes error, but I don't known why...")
+		return nil
 	}
 	bug.MutatedResult = conn.ExecSQL(bug.MutatedSql)
 	if bug.MutatedResult.Err != nil {
-		return bug.MutatedResult.Err
+		//return bug.MutatedResult.Err
+		fmt.Println(bugJsonPath + "'s mutatedSql executes error, but I don't known why...")
+		return nil
 	}
 
 	// 1. simplify dml: try to remove each node in original/mutated sql,
