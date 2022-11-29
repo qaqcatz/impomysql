@@ -47,12 +47,12 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 			return err
 		}
 	}
+
+	// 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim.
 	err = conn.InitDBWithDDLPath(ddlPath)
 	if err != nil {
 		return err
 	}
-
-	// 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim.
 	bugsDir, err := ioutil.ReadDir(bugsPath)
 	if err != nil {
 		return errors.Wrap(err, "[SqlSimTask]read dir error")

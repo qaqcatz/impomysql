@@ -2,14 +2,12 @@ package affversion
 
 import (
 	"database/sql"
-	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/task"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -17,251 +15,204 @@ import (
 	"sync"
 )
 
-// AffVersion:
+// global lock
+var affVersionLock sync.Mutex
+
+// AffVersionTask:
+// sqlsim first!
+//
 // Verify whether the bugs detected by tasks can be reproduced on the specified version of DBMS.
+// You need to deploy the specified version of DBMS in config.Host:config.Port yourself.
 //
-// - dbmsOutputPath: the OutputPath of your tasks + '/' + the DBMS of your tasks, for example, ./output/mysql
+// We will create a sqlite database `affversion.db` under the sibling directory of config.GetTaskPath() with a table:
+//   CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `version` TEXT, `status` INT);
 //
-// - version: the specified version of DBMS, needs to be a unique string, it is recommended to use tag or commit id.
+// - `taskId`: the id of a task, e.g. 0, 1, 2, ...
 //
-// - dsn, threadNum: You need to deploy the specified version of DBMS in advance and provide your dsn, format:
-//   username^password^host^port^dbPrefix
-//   you cannot use '^' in any of username, password, host, port, dbPrefix
-// for each thread i, we will create a connector with dsn "username:password@tcp(host:port)/dbPrefix+i"
+// - `bugJsonName`: the json file name of a bug, e.g. bug-0-21-FixMHaving1U,
+// you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
 //
-// Before introducing whereVersionEQ, you need to know how AffVersion works:
+// - `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
+// `version` can be an arbitrary non-empty string, it is recommended to use tag or commit id.
+// `status`: 1-yes; 0-no; -1-error.
 //
-// (1) init affversion.db:
-// We will create a sqlite database `affversion.db` in dbmsOutputPath with a table:
-//   CREATE TABLE `affversion` (`taskPath` TEXT, `bugJsonName` TEXT, `version` TEXT);
-//   CREATE INDEX `versionidx` ON `affversion` (`version`);
-// If `affversion.db` does not exist, we will create database `affversion.db` and table `affversion`,
-// then traverse each task in dbmsOutputPath, traverse each bug in taskPath/bugs(if exists) and update table `affversion`:
-//   INSERT INTO `affversion` VALUES (taskPath, bugJsonName, "");
+// If whereVersionEQ == "", we will verify each bug under config.GetTaskPath()/sqlsim,
 //
-// (2) load bugs group by taskPath:
-//   SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ
-// We will save these bugs in a map group by taskPath, so that each group only needs to execute ddl once.
+// else we will only verify these bugs:
+//   SELECT `bugJsonName` FROM `affversion`
+//   WHERE `taskId` = config.TaskId AND `version` = whereVersionEQ AND `status`=1
 //
-// Obviously, If whereVersionEQ="", you will get all bugs.
-//
-// (3) verify each group in parallel:
-// Each group will be assigned a thread.
-// We will first init database with ddl.
-// Then, for each bug in this group, we will verify whether the bug can be reproduced on the specified version of DBMS.
-// If it can be reproduced, we will:
-//   INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
+// According to the reproduction status of the bug, we will insert a new record to `affversion`:
+//   INSERT INTO `affversion` (`taskId`, `bugJsonName`, `version`, `status`)
+//   SELECT taskId, bugJsonName, version, status
 //   WHERE NOT EXISTS
-//   (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
-// This is done to ensure that each row is unique. (We will also ensure thread safety)
-//
-// Now you understand how AffVersion works, you can query the table `affversion` to get the information you want.
-func AffVersion(dbmsOutputPath string, version string, dsn string, threadNum int, whereVersionEQ string) error {
-	// get abs path
-	dbmsOutputPath, err := filepath.Abs(dbmsOutputPath)
-	if err != nil {
-		return errors.Wrap(err, "[AffVersion]path abs error")
+//   (SELECT * from `affversion`
+//   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
+func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, version string, whereVersionEQ string) error {
+	if version == "" {
+		return errors.New("[AffVersionTask]version empty")
 	}
-	// create connector pool
-	dsnUnits := strings.Split(dsn, "^")
-	if len(dsnUnits) != 5 {
-		return errors.New("[AffVersion]len(dsnUnits) != 5: "+dsn)
-	}
-	username := dsnUnits[0]
-	password := dsnUnits[1]
-	host := dsnUnits[2]
-	portStr := dsnUnits[3]
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		return errors.Wrap(err, "[AffVersion]parse port error")
-	}
-	dbPrefix := dsnUnits[4]
-	connPool, err := connector.NewConnectorPool(host, port, username, password, dbPrefix, threadNum)
+
+	// check path
+	ddlPath := config.DDLPath
+	sqlSimPath := path.Join(config.GetTaskPath(), "sqlsim")
+	exists, err := pathExists(ddlPath)
 	if err != nil {
 		return err
 	}
-	// (1) init affversion.db:
-	affVersionDBPath := path.Join(dbmsOutputPath, "affversion.db")
-	affVersionDBPathExists, err := pathExists(affVersionDBPath)
+	if !exists {
+		return nil
+	}
+	exists, err = pathExists(sqlSimPath)
 	if err != nil {
 		return err
 	}
-	// sql.Open will create database if not exists.
+	if !exists {
+		return nil
+	}
+
+	// open sqlite database affVersion and create table if not exists affVersion
+	taskSibPath := filepath.Join(config.GetTaskPath(), "..")
+	affVersionDBPath := path.Join(taskSibPath, "affversion.db")
 	affVersionDB, err := sql.Open("sqlite3", affVersionDBPath)
 	defer affVersionDB.Close()
 	if err != nil {
-		return errors.Wrap(err, "[AffVersion]open database error")
+		return errors.Wrap(err, "[AffVersionTask]open database error")
 	}
-	// if it is the first time to open db, create table and insert data
-	if !affVersionDBPathExists {
-		_, err = affVersionDB.Exec(`CREATE TABLE affversion (taskPath TEXT, bugJsonName TEXT, version TEXT);`)
-		if err != nil {
-			return errors.Wrap(err, "[AffVersion]create table error")
-		}
-		_, err = affVersionDB.Exec(`CREATE INDEX versionidx ON affversion (version);`)
-		if err != nil {
-			return errors.Wrap(err, "[AffVersion]create index error")
-		}
-		bugJsonPaths, err := getAllBugsFromDir(dbmsOutputPath);
+	_, err = affVersionDB.Exec(`CREATE TABLE IF NOT EXISTS affversion (
+    taskId INT, bugJsonName TEXT, 
+    version TEXT, status INT);`)
+	if err != nil {
+		return errors.Wrap(err, "[AffVersionTask]create table error")
+	}
+
+	// create mysql connector
+	var conn *connector.Connector = nil
+	if publicConn != nil {
+		conn = publicConn
+	} else {
+		conn, err = connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
 		if err != nil {
 			return err
 		}
-		for _, bugJsonPath := range bugJsonPaths {
-			taskPath := filepath.Join(bugJsonPath, "../", "../")
-			bugJsonName := filepath.Base(bugJsonPath)
-			_, err = affVersionDB.Exec(`INSERT INTO affversion VALUES ('`+taskPath+`', '`+bugJsonName+`', '');`)
+	}
+
+	var bugJsonNames []string
+	if whereVersionEQ == "" {
+		//  verify each bug under sqlSimPath
+		bugJsonNames, err = getBugsFromDir(sqlSimPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		// only verify these bugs:
+		//   SELECT `bugJsonName` FROM `affversion`
+		//   WHERE `taskId` = config.TaskId AND `version` = whereVersionEQ AND `status`=1
+		bugJsonNames, err = getBugsFromDB(affVersionDB, config.TaskId, whereVersionEQ)
+	}
+
+	if len(bugJsonNames) != 0 {
+		err = conn.InitDBWithDDLPath(ddlPath)
+		if err != nil {
+			return err
+		}
+		for _, bugJsonName := range bugJsonNames {
+			bugJsonPath := path.Join(sqlSimPath, bugJsonName)
+			err = doVerify(bugJsonPath, config.TaskId, bugJsonName, version, affVersionDB, conn)
 			if err != nil {
-				return errors.Wrap(err, "[AffVersion]insert bug error")
+				return err
 			}
 		}
 	}
-	// (2) load bugs group by taskPath:
-	bugGroups, err := getBugGroupsFromDB(affVersionDB, whereVersionEQ)
-	if err != nil {
-		return err
-	}
-	// (3) verify each group in parallel
-	var waitgroup sync.WaitGroup
-	var mutex sync.Mutex
-	total := len(bugGroups)
-	cur := 0
-	i := 0
-	for taskPath, bugGroup := range bugGroups {
 
-		// rate
-		if cur > total/20 {
-			cur = 0
-			fmt.Println("[Rate]", i, "/", total)
-		} else {
-			cur += 1
-		}
-		i += 1
-
-		// wait for a free connector
-		conn := connPool.WaitForFree()
-		waitgroup.Add(1)
-		go doVerify(version, affVersionDB, &waitgroup, &mutex, conn, connPool, taskPath, bugGroup)
-	}
-	waitgroup.Wait()
 	return nil
 }
 
-// getAllBugsFromDir: recursively traverse each bug in dbmsOutputPath, get bugJsonPaths
-func getAllBugsFromDir(dbmsOutputPath string) ([]string, error) {
-	bugJsonPaths := make([]string, 0)
+func getBugsFromDir(bugsPath string) ([]string, error) {
+	bugJsonNames := make([]string, 0)
 
-	dbmsOutputDir, err := ioutil.ReadDir(dbmsOutputPath)
+	bugsDir, err := ioutil.ReadDir(bugsPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "[getAllBugsFromDir]read dir error")
+		return nil, errors.Wrap(err, "[getBugsFromDir]read dir error")
 	}
-	for _, taskDir := range dbmsOutputDir {
-		if !taskDir.IsDir() {
+	for _, bugJsonFile := range bugsDir {
+		if !strings.HasSuffix(bugJsonFile.Name(), ".json") {
 			continue
 		}
-		bugsPath := path.Join(dbmsOutputPath, taskDir.Name(), "bugs")
-		bugsPathExists, err := pathExists(bugsPath)
-		if err != nil {
-			return nil, err
-		}
-		if !bugsPathExists {
-			continue
-		}
-
-		bugsDir, err := ioutil.ReadDir(bugsPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "[getAllBugsFromDir]read dir error")
-		}
-		for _, bugJsonFile := range bugsDir {
-			if !strings.HasSuffix(bugJsonFile.Name(), ".json") {
-				continue
-			}
-			bugJsonPaths = append(bugJsonPaths, path.Join(bugsPath, bugJsonFile.Name()))
-		}
+		bugJsonNames = append(bugJsonNames, bugJsonFile.Name())
 	}
-	return bugJsonPaths, nil
+	return bugJsonNames, nil
 }
 
-// getBugGroupsFromDB: SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ,
-// group by taskPath
-func getBugGroupsFromDB(db *sql.DB, whereVersionEQ string) (map[string][]string, error) {
-	bugGroups := make(map[string][]string)
+func getBugsFromDB(db *sql.DB, taskId int, whereVersionEQ string) ([]string, error) {
+	bugJsonNames := make([]string, 0)
 
-	rows, err := db.Query("SELECT taskPath, bugJsonName FROM affversion WHERE version='"+whereVersionEQ+"'")
+	rows, err := db.Query(`SELECT bugJsonName FROM affversion WHERE 
+	taskId = `+strconv.Itoa(taskId)+` AND 
+    version = '`+whereVersionEQ+`' AND 
+    status=1`)
 	if err != nil {
-		return nil, errors.Wrap(err, "[getBugGroupsFromDB]select bug error")
+		return nil, errors.Wrap(err, "[getBugsFromDB]select bugs error")
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var taskPath string
 		var bugJsonName string
-		err = rows.Scan(&taskPath, &bugJsonName)
+		err = rows.Scan(&bugJsonName)
 		if err != nil {
-			return nil, errors.Wrap(err, "[getBugGroupsFromDB]scan row error")
+			return nil, errors.Wrap(err, "[getBugsFromDB]scan row error")
 		}
-		if bugGroup, ok := bugGroups[taskPath]; ok {
-			bugGroups[taskPath] = append(bugGroup, bugJsonName)
-		} else {
-			bugGroups[taskPath] = []string{bugJsonName}
-		}
+		bugJsonNames = append(bugJsonNames, bugJsonName)
 	}
 	if rows.Err() != nil {
-		return nil, errors.Wrap(rows.Err(), "[getBugGroupsFromDB]rows err")
+		return nil, errors.Wrap(rows.Err(), "[getBugsFromDB]rows err")
 	}
 
-	return bugGroups, nil
+	return bugJsonNames, nil
 }
 
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, errors.Wrap(err, "[PathExists]file stat error")
-}
+func doVerify(bugJsonPath string, taskId int, bugJsonName string,
+	version string, affVersionDB *sql.DB,
+	conn *connector.Connector) error {
 
-func doVerify(version string, affVersionDB *sql.DB,
-	waitGroup *sync.WaitGroup, mutex *sync.Mutex,
-	conn *connector.Connector, connPool *connector.ConnectorPool,
-	taskPath string, bugGroup []string) {
-
-	defer func() {
-		connPool.BackToPool(conn)
-		waitGroup.Done()
-	}()
-
-	// init database with ddl
-	err := conn.InitDBWithDDLPath(path.Join(taskPath, "output.data.sql"))
+	bug, err := task.NewBugReport(bugJsonPath)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	for _, bugJsonName := range bugGroup {
-		bugJsonPath := path.Join(taskPath, "bugs", bugJsonName)
-		bug, err := task.NewBugReport(bugJsonPath)
-		if err != nil {
-			panic(err)
-		}
-		originalResult := conn.ExecSQL(bug.OriginalSql)
-		mutatedResult := conn.ExecSQL(bug.MutatedSql)
-		check, err := oracle.Check(originalResult, mutatedResult, bug.IsUpper)
-		mutex.Lock()
-		if err != nil {
-			fmt.Println("[Warning]", bugJsonPath, "error! May be some features are not compatible")
-		} else if !check {
-			// reproducible
+	originalResult := conn.ExecSQL(bug.OriginalSql)
+	mutatedResult := conn.ExecSQL(bug.MutatedSql)
+	check, err := oracle.Check(originalResult, mutatedResult, bug.IsUpper)
 
-			// INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
-			// WHERE NOT EXISTS
-			// (SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
-			_, err = affVersionDB.Exec(`INSERT INTO affversion (taskPath, bugJsonName, version) `+
-				`SELECT '`+taskPath+`', '`+bugJsonName+`', '`+version+`' WHERE NOT EXISTS `+
-				`(SELECT * from affversion WHERE taskPath='`+taskPath+`' AND bugJsonName='`+bugJsonName+`' AND version='`+version+`');`)
-			if err != nil {
-				panic("[doVerify]insert bug error: " + err.Error())
-			}
+	status := -1
+	if err != nil {
+		status = -1
+	} else {
+		if check {
+			status = 0
+		} else {
+			status = 1
 		}
-		mutex.Unlock()
 	}
+
+	affVersionLock.Lock()
+
+	//   INSERT INTO `affversion` (`taskId`, `bugJsonName`, `version`, `status`)
+	//   SELECT taskId, bugJsonName, version, status
+	//   WHERE NOT EXISTS
+	//   (SELECT * from `affversion`
+	//   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
+	_, err = affVersionDB.Exec(`INSERT INTO affversion (taskId, bugJsonName, version, status)
+	  SELECT `+strconv.Itoa(taskId)+`, '`+bugJsonName+`', '`+version+`', `+strconv.Itoa(status)+` 
+	  WHERE NOT EXISTS
+	  (SELECT * from affversion
+	  WHERE taskId=`+strconv.Itoa(taskId)+` AND 
+	  bugJsonName='`+bugJsonName+`' AND 
+	  version='`+version+`' AND 
+	  status=`+strconv.Itoa(status)+`);`)
+	if err != nil {
+		return errors.Wrap(err, "[doVerify]insert bug error")
+	}
+
+	affVersionLock.Unlock()
+
+	return nil
 }

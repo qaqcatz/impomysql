@@ -451,175 +451,161 @@ We provide default configuration files for mysql, mariadb, tidb, oceanbase, you 
 
 ## 4. Tools
 
-### 4.1 affversion
+### 4.1 sqlsim
 
-You may need to verify which database versions a logical bug affects.  
+> We assume that you have finished the **quick start** in **3.5 run task pool**.
 
-We provide `affversion` for this:
+#### intro
+
+For a task, you can use the following command to simplify the sql statements of bugs:
 
 ```shell
-cd ${IMPOHOME}
-./impomysql affversion dbmsOutputPath version dsn threadNum [whereVersionEQ]
-# such as: 
-# ./impomysql affversion ./output/mysql 8.0.30 root^123456^127.0.0.1^13306^TEST 8
-# ./impomysql affversion ./output/mysql 5.7 root^123456^127.0.0.1^13307^TEST 8 8.0.30
+./impomysql sqlsim task ./output/mysql/task-0-config.json
 ```
 
-`affversion` will verify whether the bugs detected by tasks can be reproduced on the specified version of DBMS.
+We will try to remove each ast node in original/mutated sql statement, simplify if the result does not change or the implication oracle can still detect the bug.
 
-* `dbmsOutputPath`: `the OutputPath of your tasks` + '/' + `the DBMS of your tasks`, for example, ./output/mysql.
+After that, you will see a new folder `sqlsim` under `task-0` with some friendly sql statements.
 
-* `version`: the specified version of DBMS, needs to be a unique string, it is recommended to use tag or commit id.
+You can also use the following command to simplify the entire taskpool:
 
-* `threadNum`: executing the ddl of a logical bug is time-consuming, so we will execute them in parallel.
+```shell
+./impomysql sqlsim taskpool ./resources/taskpoolconfig.json
+```
 
-* `dsn`: you need to deploy the specified version of DBMS in advance and provide your dsn, format:
+At present, `sqlsim` can only do some simple simplifications, we will make it better in the future.
 
-  ```shell
-  username^password^host^port^dbPrefix
-  you cannot use '^' in any of username, password, host, port, dbPrefix.
+#### example
+
+```shell
+./impomysql sqlsim taskpool ./resources/taskpoolconfig.json
+```
+
+Task the mutatedSql in `task-0/bugs/bug-0-21-FixMHaving1U.json` and `task-0/sqlsim/bug-0-21-FixMHaving1U.json` as an example, you will see:
+
+```sql
+WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING 1 ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
+```
+
+changed to:
+
+```sql
+SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2`) AS `t1` HAVING 1;
+```
+
+### 4.2 affversion
+
+> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 sqlsim**
+
+#### intro
+
+You may need to verify which DBMS versions a logical bug affects.  
+
+For a task, you can use `affversion` to verify if the bugs under sqlsim can be reproduced on the specified version of DBMS:
+
+```shell
+./impomysql affversion task taskConfigPath version [whereVersionEQ]
+# such as:
+./impomysql affversion task ./output/mysql/task-0-config.json 8.0.30
+./impomysql affversion task ./output/mysql/task-0-config.json 5.7 8.0.30
+```
+
+We will create a sqlite database `affversion.db` under the sibling directory of the task's path with a table:
+
+```sqlite
+CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `version` TEXT, `status` INT);
+```
+
+* `taskId`: the id of the task, e.g. 0, 1, 2, ...
+
+*  `bugJsonName`: the json file name of the bug, e.g. bug-0-21-FixMHaving1U, you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
+
+* `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
+
+   `version` can be an arbitrary non-empty string, it is recommended to use tag or commit id. 
+
+  `status`: 1-yes; 0-no; -1-error.
+
+* `whereVersionEQ`:
+
+* If `whereVersionEQ` == "", we will verify each bug under task-`taskId`/sqlsim, 
+
+  otherwise we will only verify these bugs:
+
+  ```sqlite
+  SELECT `bugJsonName` FROM `affversion`
+  WHERE `taskId` = taskId AND `version` = whereVersionEQ AND `status` = 1
   ```
 
-  for each thread i, we will create a connector with dsn "username:password@tcp(host:port)/dbPrefix+i"
+We will update table `affversion` according to the reproduction status of each bug.
 
-* `whereVersionEQ`: before introducing `whereVersionEQ`, you need to know how `affversion` works.
-
-**How `affversion` works?**
-
-(1) init `affversion.db`
-
-We will create a sqlite database `affversion.db` in `dbmsOutputPath` with a table:
-
-```sql
-CREATE TABLE `affversion` (`taskPath` TEXT, `bugJsonName` TEXT, `version` TEXT);
-CREATE INDEX `versionidx` ON `affversion` (`version`);
-```
-
-If `affversion.db` does not exist, we will create database `affversion.db` and table `affversion`,  traverse each task in `dbmsOutputPath`, traverse each bug in `taskPath/bugs`(if exists), update table `affversion`:
-
-```sql
-INSERT INTO `affversion` VALUES (taskPath, bugJsonName, "");
-```
-
-(2) load bugs group by `taskPath`
-
-```sql
-SELECT `taskPath`, `bugJsonName` FROM `affversion` WHERE `version` = whereVersionEQ
-```
-
-We will save these bugs in a map group by `taskPath`, so that each group only needs to execute ddl once.
-
-Obviously, If `whereVersionEQ`="", you will get all bugs.
-
-(3) verify each group in parallel
-
-Each group will be assigned a thread.
-
-We will first init database with ddl.
-
-Then, for each bug in this group, we will verify whether the bug can be reproduced on the specified version of DBMS.
-
-If it can be reproduced, we will:
-
-```sql
-INSERT INTO `affversion` (`taskPath`, `bugJsonName`, `version`) SELECT taskPath, bugJsonName, version
-WHERE NOT EXISTS
-(SELECT * from `affversion` WHERE `taskPath`=taskPath AND `bugJsonName`=bugJsonName AND `version`=version);
-```
-
-This is done to ensure that each row is unique. (We will also ensure thread safety)
-
-Now you understand how `affversion` works, you can query the table `affversion` to get the information you want.
-
-**example**
-
-We assume that you have finished the **quick start** in **3.5 run task pool**.
-
-Run `affversion`:
+You can also use the following command to verify the entire taskpool:
 
 ```shell
-./impomysql affversion ./output/mysql 8.0.30 root^123456^127.0.0.1^13306^TEST 8
+./impomysql affversion taskpool taskPoolConfigPath version [whereVersionEQ]
+# such as:
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 5.7 8.0.30
 ```
 
-`affversion` will verify whether the logical bugs detected by `taskpool` can be reproduced on mysql 8.0.30.
+Note that:
 
-You will see a sqlite database `affversion.db` in `./output/mysql`.
+* You need to deploy the specified version of DBMS yourself.
+* make sure you have executed `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them.
 
-```shell
-sqlite3 affversion.db
-sqlite> .headers on
-sqlite> .mode column
-sqlite> .tables
-affversion
-sqlite> select * from affversion;
-taskPath                                                 bugJsonName                 version   
--------------------------------------------------------  --------------------------  ----------
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso  8.0.30    
-```
-
-These logical bugs were successfully reproduced on mysql 8.0.30.
-
-Then deploy mysql 5.7:
-
-```shell
-sudo docker run -itd --name mysqltest2 -p 13307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
-```
-
-Run `affversion`:
-
-```shell
-./impomysql affversion ./output/mysql 5.7 root^123456^127.0.0.1^13307^TEST 8 8.0.30
-# [Warning] /home/hzy/hzy/projects/db/impomysql/output/mysql/task-0/bugs/bug-0-21-FixMHaving1U.json error! May be some features are not compatible
-# [Warning] /home/hzy/hzy/projects/db/impomysql/output/mysql/task-6/bugs/bug-0-84-FixMHaving1U.json error! May be some features are not compatible
-```
-
-`affversion` will verify whether the logical bugs on mysql 8.0.30 can be reproduced on mysql 5.7.
-
-You will also see 2 warnings, they mean that `task-0/bugs/bug-0-21-FixMHaving1U.json` and `task-6/bugs/bug-0-84-FixMHaving1U.json` have some incompatible features and cannot execute on mysql 5.7.
-
-See `./output/mysql/affversion.db`:
-
-```shell
-sqlite> select * from affversion;
-taskPath                                                 bugJsonName                 version   
--------------------------------------------------------  --------------------------  ----------
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso            
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-0  bug-0-21-FixMHaving1U.json  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-1  bug-0-75-FixMDistinctL.jso  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-0-84-FixMHaving1U.json  8.0.30    
-/home/hzy/hzy/projects/db/impomysql/output/mysql/task-6  bug-1-91-FixMDistinctL.jso  8.0.30 
-```
-
-Nothing changes. It means that all logical bugs on mysql 8.0.30 cannot be reproduced on mysql 5.7. You can manually verify it yourself.
-
-> You may noticed that if a sql has some redundant features which are incompatible with the old version, it will interfere with our judgment.
+> You may need to locate the root cause of a bug on git commits.
 >
-> Therefore, it is recommended to simplify the sql first.
+>  We will provide some dockerfiles for compiling the DBMSs in the future.
 
-You may need to locate the root cause of a bug on git commits, We will provide some dockerfiles for compiling the DBMSs in the future.
+#### example
 
-### 4.2 sqlsim
+Run `affversion` :
 
-Nobody likes these sqls, obviously we need to simplify them:
-
-```sql
--- OriginalSql
-WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING (((CHARSET(`f1`)) NOT IN (SELECT `col_float_undef_signed` FROM `table_3_utf8_2` USE INDEX (`col_decimal(40, 20)_key_signed`, `col_decimal(40, 20)_key_signed`))) IS FALSE) IS FALSE ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
--- MutatedSql
-WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING 1 ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
-
+```shell
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 8.0.30
 ```
 
-Another reason, as we introduced in **4.1 affversion**, is that redundant incompatible features may interfere with bug localization.
+You will see a new sqlite database under  `./output/mysql`, and a table `affversion`:
 
-> todo
+```sqlite
+sqlite> select * from affversion;
+taskId      bugJsonName                  version     status    
+----------  ---------------------------  ----------  ----------
+11          bug-0-75-FixMDistinctL.json  8.0.30      1         
+0           bug-0-21-FixMHaving1U.json   8.0.30      1         
+6           bug-0-84-FixMHaving1U.json   8.0.30      1         
+6           bug-1-91-FixMDistinctL.json  8.0.30      1         
+```
+
+It means that all bugs can be reproduced on `mysql 8.0.30`. 
+
+Then deploy `mysql 5.7`:
+
+```shell
+sudo docker stop mysqltest
+sudo docker run -itd --name mysqltest2 -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+```
+
+Run `affversion` again:
+
+```shell
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 5.7 8.0.30
+```
+
+See table `affversion`:
+
+```sqlite
+sqlite> select * from affversion;
+taskId      bugJsonName                  version     status    
+----------  ---------------------------  ----------  ----------
+11          bug-0-75-FixMDistinctL.json  8.0.30      1         
+0           bug-0-21-FixMHaving1U.json   8.0.30      1         
+6           bug-0-84-FixMHaving1U.json   8.0.30      1         
+6           bug-1-91-FixMDistinctL.json  8.0.30      1         
+11          bug-0-75-FixMDistinctL.json  5.7         0         
+6           bug-0-84-FixMHaving1U.json   5.7         1         
+0           bug-0-21-FixMHaving1U.json   5.7         1         
+6           bug-1-91-FixMDistinctL.json  5.7         0 
+```
+
+It means that some bugs cannot be reproduced on `mysql 5.7`. You can manually verify yourself.

@@ -6,15 +6,15 @@ import (
 	"github.com/qaqcatz/impomysql/tasktool/sqlsim"
 	"log"
 	"os"
-	"strconv"
 )
 
 // todo: use urfave/cli
 // use task taskConfigPath
 // or  taskpool taskPoolConfigPath
-// or  affversion dbmsOutputPath version dsn threadNum [whereVersionEQ], see tasktool.MayAffect
 // or  sqlsim task taskConfigPath
 // or  sqlsim taskpool taskPoolConfigPath
+// or  affversion task taskConfigPath version [whereVersionEQ]
+// or  affversion taskpool taskPoolConfigPath version [whereVersionEQ]
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -63,27 +63,35 @@ func doTaskPool(args []string) {
 }
 
 func doAffVersion(args []string) {
-	if len(args) <= 5 {
-		log.Fatal("[doAffVersion]len(args) <= 5")
+	if len(args) <= 4 {
+		log.Fatal("[doAffVersion]len(args) <= 4")
 	}
-	dbmsOutputPath := args[2]
-	version := args[3]
-	dsn := args[4]
-	threadNumStr := args[5]
-	threadNum, err := strconv.Atoi(threadNumStr)
-	if err != nil {
-		log.Fatal("[doAffVersion]parse threadNum error")
-	}
-	if threadNum <= 0 {
-		log.Fatal("[doAffVersion]threadNum <= 0")
-	}
+	version := args[4]
 	whereVersionEQ := ""
-	if len(args) > 6 {
-		whereVersionEQ = args[6]
+	if len(args) > 5 {
+		whereVersionEQ = args[5]
 	}
-	err = affversion.AffVersion(dbmsOutputPath, version, dsn, threadNum, whereVersionEQ)
-	if err != nil {
-		log.Fatal("[doAffVersion]affect version error: ", err)
+	switch args[2] {
+	case "task":
+		taskConfig, err := task.NewTaskConfig(args[3])
+		if err != nil {
+			log.Fatal("[doAffVersion]new task config error: ", err)
+		}
+		err = affversion.AffVersionTask(taskConfig, nil, version, whereVersionEQ)
+		if err != nil {
+			log.Fatal("[doAffVersion]affversion task error: ", err)
+		}
+	case "taskpool":
+		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
+		if err != nil {
+			log.Fatal("[doSqlSim]new task pool config error: ", err)
+		}
+		err = affversion.AffVersionTaskPool(taskPoolConfig, version, whereVersionEQ)
+		if err != nil {
+			log.Fatal("[doAffVersion]affversion task pool error: ", err)
+		}
+	default:
+		log.Fatal("[doAffVersion]please use task, taskpool")
 	}
 }
 
