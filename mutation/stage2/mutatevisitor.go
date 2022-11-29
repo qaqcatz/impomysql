@@ -274,7 +274,7 @@ func (v *MutateVisitor) visitExprNode(in ast.ExprNode, flag int) {
 		// skip
 		// https://dev.mysql.com/doc/refman/8.0/en/partitioning-range.html
 	case *ast.MatchAgainst:
-		// skip, todo
+		// skip, todo match
 	case *ast.SetCollationExpr:
 		// skip
 	case *ast.FuncCallExpr:
