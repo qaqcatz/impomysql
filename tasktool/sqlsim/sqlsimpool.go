@@ -83,10 +83,10 @@ func PrepareAndRunSqlSimTask(taskConfigJsonPath string,
 
 	taskConfig, err := task.NewTaskConfig(taskConfigJsonPath)
 	if err != nil {
-		panic("[PrepareAndRunSqlSimTask]new task config error: " + err.Error())
+		panic(fmt.Sprintf("[PrepareAndRunSqlSimTask]new task config error: %+v\n", err))
 	}
 	err = SqlSimTask(taskConfig, conn)
 	if err != nil {
-		panic("[PrepareAndRunSqlSimTask]sqlsim task error: " + err.Error())
+		panic(fmt.Sprintf("[PrepareAndRunSqlSimTask]sqlsim task error: %+v\n", err))
 	}
 }

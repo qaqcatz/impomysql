@@ -86,10 +86,10 @@ func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 
 	taskConfig, err := task.NewTaskConfig(taskConfigJsonPath)
 	if err != nil {
-		panic("[PrepareAndRunAffVersionTask]new task config error: " + err.Error())
+		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]new task config error: %+v\n", err))
 	}
 	err = AffVersionTask(taskConfig, conn, version, whereVersionEQ)
 	if err != nil {
-		panic("[PrepareAndRunAffVersionTask]sqlsim task error: " + err.Error())
+		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task error: %+v\n", err))
 	}
 }
