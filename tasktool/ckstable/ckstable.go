@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
+	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/task"
 	"github.com/qaqcatz/nanoshlib"
 	"io/ioutil"
@@ -115,35 +116,15 @@ func CheckStable(bugJsonPath string, execNum int, conn *connector.Connector) (bo
 		return false, err
 	}
 
-	var result *connector.Result = nil
 	for i := 0; i < execNum; i++ {
-		tempResult := conn.ExecSQL(bug.OriginalSql)
-		if tempResult.Err != nil {
+		originalResult := conn.ExecSQL(bug.OriginalSql)
+		mutatedResult := conn.ExecSQL(bug.MutatedSql)
+		check, err := oracle.Check(originalResult, mutatedResult, bug.IsUpper)
+		if err != nil {
 			return false, nil
 		}
-		if result == nil {
-			result = tempResult
-		} else {
-			cmp, err := result.CMP(tempResult)
-			if err != nil || cmp != 0 {
-				return false, nil
-			}
-		}
-	}
-
-	result = nil
-	for i := 0; i < execNum; i++ {
-		tempResult := conn.ExecSQL(bug.MutatedSql)
-		if tempResult.Err != nil {
+		if check {
 			return false, nil
-		}
-		if result == nil {
-			result = tempResult
-		} else {
-			cmp, err := result.CMP(tempResult)
-			if err != nil || cmp != 0 {
-				return false, nil
-			}
 		}
 	}
 
