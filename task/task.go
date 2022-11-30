@@ -264,13 +264,9 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 			" --seed "+strconv.FormatInt(config.Seed, 10)+
 			" -B "
 		logger.Info(" randgan cmd: ", randGenCmd)
-		_, errBuf, err := nanoshlib.Exec(randGenCmd, -1)
+		_, errStream, err := nanoshlib.Exec(randGenCmd, -1)
 		if err != nil {
-			errStr := ""
-			if errBuf != nil {
-				errStr = string(errBuf)
-			}
-			logger.Error("randgen error: ", err, ": ", errStr)
+			logger.Error("randgen error: ", err, ": ", errStream)
 			return nil, errors.Wrap(err, "randgen error")
 		}
 

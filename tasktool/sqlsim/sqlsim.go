@@ -14,13 +14,15 @@ import (
 
 // SqlSimTask:
 //
+// ckstable first!
+//
 // 1. mkdir sqlsim, read bugs and ddl in task path if exists, create connector
 //
 // 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim. see SqlSim.
 func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error {
 	// 1. mkdir sqlsim, read bugs and ddl in task path if exist, create connector
 	ddlPath := config.DDLPath
-	bugsPath := config.GetTaskBugsPath()
+	mayStablePath := path.Join(config.GetTaskPath(), "maystable")
 	exists, err := pathExists(ddlPath)
 	if err != nil {
 		return err
@@ -28,7 +30,7 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 	if !exists {
 		return nil
 	}
-	exists, err = pathExists(bugsPath)
+	exists, err = pathExists(mayStablePath)
 	if err != nil {
 		return err
 	}
@@ -37,6 +39,7 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 	}
 
 	sqlSimPath := path.Join(config.GetTaskPath(), "sqlsim")
+	_ = os.RemoveAll(sqlSimPath)
 	_ = os.Mkdir(sqlSimPath, 0777)
 
 	var conn *connector.Connector = nil
@@ -54,7 +57,7 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 	if err != nil {
 		return err
 	}
-	bugsDir, err := ioutil.ReadDir(bugsPath)
+	bugsDir, err := ioutil.ReadDir(mayStablePath)
 	if err != nil {
 		return errors.Wrap(err, "[SqlSimTask]read dir error")
 	}
@@ -62,7 +65,7 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 		if !strings.HasSuffix(bugJsonFile.Name(), ".json") {
 			continue
 		}
-		bugJsonPath := path.Join(bugsPath, bugJsonFile.Name())
+		bugJsonPath := path.Join(mayStablePath, bugJsonFile.Name())
 		err = SqlSim(conn, sqlSimPath, ddlPath, bugJsonPath)
 		if err != nil {
 			return err

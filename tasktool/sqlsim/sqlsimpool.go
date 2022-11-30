@@ -5,7 +5,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/task"
+	"github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -22,6 +25,20 @@ func SqlSimTaskPool(config *task.TaskPoolConfig) error {
 	if !exists {
 		return errors.New("[SqlSimTaskPool]task pool path does not exist")
 	}
+
+	// create logger
+	// 1.2 create logger, write to TaskPoolConfig.GetTaskPoolPath()/taskpool.log and os.Stdout
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+	writers := []io.Writer{
+		os.Stdout,
+	}
+	multiWriter := io.MultiWriter(writers...)
+	logger.SetOutput(multiWriter)
+	logger.SetLevel(logrus.InfoLevel)
 
 	// create connectors pool
 	connPool, err := connector.NewConnectorPool(config.Host, config.Port, config.Username, config.Password,
@@ -57,7 +74,7 @@ func SqlSimTaskPool(config *task.TaskPoolConfig) error {
 		// rate
 		if cur > total/20 {
 			cur = 0
-			fmt.Println("[Rate]", i, "/", total)
+			logger.Info("[Rate]", i, "/", total)
 		} else {
 			cur += 1
 		}
@@ -68,7 +85,7 @@ func SqlSimTaskPool(config *task.TaskPoolConfig) error {
 		go PrepareAndRunSqlSimTask(taskConfigJsonPath, &waitGroup, conn, connPool)
 	}
 	waitGroup.Wait()
-	fmt.Println("Finished!")
+	logger.Info("Finished!")
 	return nil
 }
 

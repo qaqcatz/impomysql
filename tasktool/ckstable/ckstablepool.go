@@ -1,4 +1,4 @@
-package affversion
+package ckstable
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ import (
 	"sync"
 )
 
-// AffVersionTaskPool: like task and task pool, see AffVersionTask
-func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersionEQ string) error {
+// CheckStableTaskPool: like task and task pool, see CheckStableTask
+func CheckStableTaskPool(config *task.TaskPoolConfig, execNum int) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
 	exists, err := pathExists(taskPoolPath)
@@ -23,7 +23,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 		return err
 	}
 	if !exists {
-		return errors.New("[AffVersionTaskPool]task pool path does not exist")
+		return errors.New("[CheckStableTaskPool]task pool path does not exist")
 	}
 
 	// create logger
@@ -47,10 +47,10 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 		return err
 	}
 
-	// for each task config json, call SqlSimTask
+	// for each task config json, call CheckStableTask
 	taskPoolDir, err := ioutil.ReadDir(taskPoolPath)
 	if err != nil {
-		return errors.Wrap(err, "[AffVersionTaskPool]read dir error")
+		return errors.Wrap(err, "[CheckStableTaskPool]read dir error")
 	}
 	taskConfigJsonPaths := make([]string, 0)
 	for _, taskConfigJsonFile := range taskPoolDir {
@@ -82,19 +82,16 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 		// wait for a free connector
 		conn := connPool.WaitForFree()
 		waitGroup.Add(1)
-		go PrepareAndRunAffVersionTask(taskConfigJsonPath, &waitGroup, conn, connPool,
-			version, whereVersionEQ)
+		go PrepareAndRunCKStableTask(taskConfigJsonPath, &waitGroup, conn, connPool, execNum)
 	}
 	waitGroup.Wait()
 	logger.Info("Finished!")
-
 	return nil
 }
 
-func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
+func PrepareAndRunCKStableTask(taskConfigJsonPath string,
 	waitGroup *sync.WaitGroup,
-	conn *connector.Connector, connPool *connector.ConnectorPool,
-	version string, whereVersionEQ string) {
+	conn *connector.Connector, connPool *connector.ConnectorPool, execNum int) {
 
 	defer func() {
 		connPool.BackToPool(conn)
@@ -103,10 +100,10 @@ func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 
 	taskConfig, err := task.NewTaskConfig(taskConfigJsonPath)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]new task config error: %+v\n", err))
+		panic(fmt.Sprintf("[PrepareAndRunCKStableTask]new task config error: %+v\n", err))
 	}
-	err = AffVersionTask(taskConfig, conn, version, whereVersionEQ)
+	err = CheckStableTask(taskConfig, conn, execNum)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task error: %+v\n", err))
+		panic(fmt.Sprintf("[PrepareAndRunCKStableTask]ckstable task error: %+v\n", err))
 	}
 }

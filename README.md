@@ -451,13 +451,49 @@ We provide default configuration files for mysql, mariadb, tidb, oceanbase, you 
 
 ## 4. Tools
 
-### 4.1 sqlsim
+### 4.1 ckstable
 
-> We assume that you have finished the **quick start** in **3.5 run task pool**.
+>  We assume that you have finished the **quick start** in **3.5 run task pool**.
 
 #### intro
 
-For a task, you can use the following command to simplify the sql statements of bugs:
+Some bugs are unstable. 
+
+For a task, you can use the following command to check stable bugs and unstable bugs:
+
+```shell
+./impomysql ckstable task taskConfigPath execNum
+# for example
+./impomysql ckstable task ./output/mysql/task-0-config.json 10
+```
+
+We will repeat the `originalSql`/`MutatedSql` of each bug `execNum`(recommended 10) times, save the stable bugs into directory `maystable`, save the unstable bugs into directory `unstable`.
+
+You can also use the following command to check the entire taskpool:
+
+```shell
+./impomysql ckstable taskpool taskPoolConfigPath execNum
+# for example
+./impomysql ckstable taskpool ./resources/taskpoolconfig.json 10
+```
+
+#### example
+
+```shell
+./impomysql ckstable taskpool ./resources/taskpoolconfig.json 10
+```
+
+Take `./output/mysql/task0` as an example, you will see 2 new directories `maystable` and `unstable`. 
+
+The directory `unstable` is empty, means that all bugs under `task0` are stable bugs. () 
+
+### 4.2 sqlsim
+
+> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable**.
+
+#### intro
+
+For a task, you can use the following command to simplify the sql statements of `stable` bugs:
 
 ```shell
 ./impomysql sqlsim task ./output/mysql/task-0-config.json
@@ -481,7 +517,7 @@ At present, `sqlsim` can only do some simple simplifications, we will make it be
 ./impomysql sqlsim taskpool ./resources/taskpoolconfig.json
 ```
 
-Task the mutatedSql in `task-0/bugs/bug-0-21-FixMHaving1U.json` and `task-0/sqlsim/bug-0-21-FixMHaving1U.json` as an example, you will see:
+Task the mutatedSql in `task-0/maystable/bug-0-21-FixMHaving1U.json` and `task-0/sqlsim/bug-0-21-FixMHaving1U.json` as an example, you will see:
 
 ```sql
 WITH `MYWITH` AS ((SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2` USE INDEX (`col_bigint_key_unsigned`, `col_bigint_key_signed`)) AS `t1` HAVING 1 ORDER BY `f5`) UNION (SELECT (BINARY COS(0)|1) AS `f1`,(!1) AS `f2`,(LOWER(`f9`)) AS `f3` FROM (SELECT `col_decimal(40, 20)_key_unsigned` AS `f7`,`col_bigint_key_unsigned` AS `f8`,`col_bigint_key_signed` AS `f9` FROM `table_3_utf8_2` IGNORE INDEX (`col_decimal(40, 20)_key_unsigned`, `col_varchar(20)_key_signed`)) AS `t2` WHERE (((DATE_ADD(_UTF8MB4'16:47:10', INTERVAL 1 MONTH)) IN (SELECT `col_decimal(40, 20)_key_unsigned` FROM `table_3_utf8_2`)) OR ((ROW(`f8`,DATE_SUB(BINARY LOG2(8572968212617203413), INTERVAL 1 HOUR_SECOND)) IN (SELECT `col_bigint_key_unsigned`,`col_decimal(40, 20)_undef_unsigned` FROM `table_7_utf8_2` USE INDEX (`col_double_key_unsigned`, `col_decimal(40, 20)_key_unsigned`))) IS FALSE) OR ((`f7`) BETWEEN `f7` AND `f9`)) IS TRUE ORDER BY `f7`)) SELECT * FROM `MYWITH`;
@@ -493,9 +529,9 @@ changed to:
 SELECT (0^`f5`&ADDTIME(_UTF8MB4'2017-06-19 02:05:51', _UTF8MB4'18:20:54')) AS `f1`,(`f5`+`f6`>>TIMESTAMP(_UTF8MB4'2000-06-08')) AS `f2`,(CONCAT_WS(`f4`, `f5`, `f5`)) AS `f3` FROM (SELECT `col_float_key_unsigned` AS `f4`,`col_bigint_undef_signed` AS `f5`,`col_float_undef_signed` AS `f6` FROM `table_3_utf8_2`) AS `t1` HAVING 1;
 ```
 
-### 4.2 affversion
+### 4.3 affversion
 
-> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 sqlsim**
+> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable** and **4.2 sqlsim**
 
 #### intro
 
