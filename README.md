@@ -477,6 +477,10 @@ You can also use the following command to check the entire taskpool:
 ./impomysql ckstable taskpool ./resources/taskpoolconfig.json 10
 ```
 
+Note that we use `maystable` instead of `stable`. Yes, it is very difficult to check whether a bug is stable. 
+
+If you find some strange problems in the following chapters, first consider whether it is caused by unstable bugs.
+
 #### example
 
 ```shell
