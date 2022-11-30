@@ -1,6 +1,7 @@
 package ckstable
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/task"
@@ -93,6 +94,8 @@ func CheckStableTask(config *task.TaskConfig, publicConn *connector.Connector, e
 				return errors.New("[CheckStableTask]cp stable bug log error: " + errStream)
 			}
 		} else {
+			// temp print
+			fmt.Println("unstable bug: ", config.TaskId, " ", bugJsonPath)
 			_, errStream, err := nanoshlib.Exec("cp " + bugJsonPath + " " + unStablePath, -1)
 			if err != nil {
 				return errors.New("[CheckStableTask]cp unstable bug json error: " + errStream)
