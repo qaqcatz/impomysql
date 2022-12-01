@@ -15,7 +15,7 @@ import (
 )
 
 // AffVersionTaskPool: like task and task pool, see AffVersionTask
-func AffVersionTaskPool(config *task.TaskPoolConfig, port int, version string, whereVersionEQ string) error {
+func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, version string, whereVersionEQ string) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
 	exists, err := pathExists(taskPoolPath)
@@ -42,7 +42,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, port int, version string, w
 
 	// create connectors pool
 	connPool, err := connector.NewConnectorPool(config.Host, port, config.Username, config.Password,
-		config.DbPrefix, config.ThreadNum)
+		config.DbPrefix, threadNum)
 	if err != nil {
 		return err
 	}

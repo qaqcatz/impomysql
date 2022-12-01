@@ -15,7 +15,7 @@ import (
 )
 
 // SqlSimTaskPool: like task and task pool, see SqlSimTask
-func SqlSimTaskPool(config *task.TaskPoolConfig) error {
+func SqlSimTaskPool(config *task.TaskPoolConfig, threadNum int) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
 	exists, err := pathExists(taskPoolPath)
@@ -42,7 +42,7 @@ func SqlSimTaskPool(config *task.TaskPoolConfig) error {
 
 	// create connectors pool
 	connPool, err := connector.NewConnectorPool(config.Host, config.Port, config.Username, config.Password,
-		config.DbPrefix, config.ThreadNum)
+		config.DbPrefix, threadNum)
 	if err != nil {
 		return err
 	}

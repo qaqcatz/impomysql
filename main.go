@@ -14,11 +14,11 @@ import (
 // use task taskConfigPath
 // or  taskpool taskPoolConfigPath
 // or  ckstable task taskConfigPath execNum
-// or  ckstable taskpool taskPoolConfigPath execNum
+// or  ckstable taskpool taskPoolConfigPath threadNum execNum
 // or  sqlsim task taskConfigPath
-// or  sqlsim taskpool taskPoolConfigPath
+// or  sqlsim taskpool taskPoolConfigPath threadNum
 // or  affversion task taskConfigPath port version [whereVersionEQ]
-// or  affversion taskpool taskPoolConfigPath port version [whereVersionEQ]
+// or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionEQ]
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -68,44 +68,21 @@ func doTaskPool(args []string) {
 	}
 }
 
-func doSqlSim(args []string) {
-	if len(args) <= 3 {
-		log.Fatal("[doSqlSim]len(args) <= 3")
-	}
-	switch args[2] {
-	case "task":
-		taskConfig, err := task.NewTaskConfig(args[3])
-		if err != nil {
-			log.Fatal("[doSqlSim]new task config error: ", err)
-		}
-		err = sqlsim.SqlSimTask(taskConfig, nil)
-		if err != nil {
-			log.Fatal("[doSqlSim]sqlsim task error: ", err)
-		}
-	case "taskpool":
-		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
-		if err != nil {
-			log.Fatal("[doSqlSim]new task pool config error: ", err)
-		}
-		err = sqlsim.SqlSimTaskPool(taskPoolConfig)
-		if err != nil {
-			log.Fatal("[doSqlSim]sqlsim task pool error: ", err)
-		}
-	default:
-		log.Fatal("[doSqlSim]please use task, taskpool")
-	}
-}
-
 func doCKStable(args []string) {
-	if len(args) <= 4 {
-		log.Fatal("[doCKStable]len(args) <= 4")
-	}
-	execNum, err := strconv.Atoi(args[4])
-	if err != nil {
-		log.Fatal("[doCKStable]parse execNum error: ", err)
+	if len(args) <= 2 {
+		log.Fatal("[doCKStable]len(args) <= 2")
 	}
 	switch args[2] {
 	case "task":
+		// ckstable task taskConfigPath execNum
+		if len(args) <= 4 {
+			log.Fatal("[doCKStable]len(args) <= 4")
+		}
+		execNum, err := strconv.Atoi(args[4])
+		if err != nil {
+			log.Fatal("[doCKStable]parse execNum error: ", err)
+		}
+
 		taskConfig, err := task.NewTaskConfig(args[3])
 		if err != nil {
 			log.Fatal("[doCKStable]new task config error: ", err)
@@ -115,11 +92,24 @@ func doCKStable(args []string) {
 			log.Fatal("[doCKStable]ckstable task error: ", err)
 		}
 	case "taskpool":
+		// ckstable taskpool taskPoolConfigPath threadNum execNum
+		if len(args) <= 5 {
+			log.Fatal("[doCKStable]len(args) <= 5")
+		}
+		threadNum, err := strconv.Atoi(args[4])
+		if err != nil || threadNum <= 0 {
+			log.Fatal("parse threadNum error")
+		}
+		execNum, err := strconv.Atoi(args[5])
+		if err != nil {
+			log.Fatal("[doCKStable]parse execNum error: ", err)
+		}
+
 		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
 		if err != nil {
 			log.Fatal("[doCKStable]new task pool config error: ", err)
 		}
-		err = ckstable.CheckStableTaskPool(taskPoolConfig, execNum)
+		err = ckstable.CheckStableTaskPool(taskPoolConfig, threadNum, execNum)
 		if err != nil {
 			log.Fatal("[doCKStable]ckstable task pool error: ", err)
 		}
@@ -128,24 +118,66 @@ func doCKStable(args []string) {
 	}
 }
 
-func doAffVersion(args []string) {
-	if len(args) <= 5 {
-		log.Fatal("[doAffVersion]len(args) <= 5")
-	}
-	port, err := strconv.Atoi(args[4])
-	if err != nil {
-		log.Fatal("[doAffVersion]parse port error: ", err)
-	}
-	if port <= 0 {
-		log.Fatal("[doAffVersion]port <= 0")
-	}
-	version := args[5]
-	whereVersionEQ := ""
-	if len(args) > 6 {
-		whereVersionEQ = args[6]
+func doSqlSim(args []string) {
+	if len(args) <= 2 {
+		log.Fatal("[doSqlSim]len(args) <= 2")
 	}
 	switch args[2] {
 	case "task":
+		// sqlsim task taskConfigPath
+		if len(args) <= 3 {
+			log.Fatal("[doSqlSim]len(args) <= 3")
+		}
+		taskConfig, err := task.NewTaskConfig(args[3])
+		if err != nil {
+			log.Fatal("[doSqlSim]new task config error: ", err)
+		}
+		err = sqlsim.SqlSimTask(taskConfig, nil)
+		if err != nil {
+			log.Fatal("[doSqlSim]sqlsim task error: ", err)
+		}
+	case "taskpool":
+		// sqlsim taskpool taskPoolConfigPath threadNum
+		if len(args) <= 4 {
+			log.Fatal("[doSqlSim]len(args) <= 4")
+		}
+		threadNum, err := strconv.Atoi(args[4])
+		if err != nil || threadNum <= 0 {
+			log.Fatal("parse threadNum error")
+		}
+		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
+		if err != nil {
+			log.Fatal("[doSqlSim]new task pool config error: ", err)
+		}
+		err = sqlsim.SqlSimTaskPool(taskPoolConfig, threadNum)
+		if err != nil {
+			log.Fatal("[doSqlSim]sqlsim task pool error: ", err)
+		}
+	default:
+		log.Fatal("[doSqlSim]please use task, taskpool")
+	}
+}
+
+func doAffVersion(args []string) {
+	if len(args) <= 2 {
+		log.Fatal("[doAffVersion]len(args) <= 2")
+	}
+	switch args[2] {
+	case "task":
+		// affversion task taskConfigPath port version [whereVersionEQ]
+		if len(args) <= 5 {
+			log.Fatal("[doAffVersion]len(args) <= 5")
+		}
+		port, err := strconv.Atoi(args[4])
+		if err != nil || port <= 0 {
+			log.Fatal("[doAffVersion]parse port error")
+		}
+		version := args[5]
+		whereVersionEQ := ""
+		if len(args) > 6 {
+			whereVersionEQ = args[6]
+		}
+
 		taskConfig, err := task.NewTaskConfig(args[3])
 		if err != nil {
 			log.Fatal("[doAffVersion]new task config error: ", err)
@@ -155,11 +187,29 @@ func doAffVersion(args []string) {
 			log.Fatal("[doAffVersion]affversion task error: ", err)
 		}
 	case "taskpool":
+		// affversion taskpool taskPoolConfigPath threadNum port version [whereVersionEQ]
+		if len(args) <= 6 {
+			log.Fatal("[doAffVersion]len(args) <= 6")
+		}
+		threadNum, err := strconv.Atoi(args[4])
+		if err != nil || threadNum <= 0 {
+			log.Fatal("parse threadNum error")
+		}
+		port, err := strconv.Atoi(args[5])
+		if err != nil || port <= 0 {
+			log.Fatal("[doAffVersion]parse port error")
+		}
+		version := args[6]
+		whereVersionEQ := ""
+		if len(args) > 7 {
+			whereVersionEQ = args[7]
+		}
+
 		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
 		if err != nil {
 			log.Fatal("[doSqlSim]new task pool config error: ", err)
 		}
-		err = affversion.AffVersionTaskPool(taskPoolConfig, port, version, whereVersionEQ)
+		err = affversion.AffVersionTaskPool(taskPoolConfig, threadNum, port, version, whereVersionEQ)
 		if err != nil {
 			log.Fatal("[doAffVersion]affversion task pool error: ", err)
 		}

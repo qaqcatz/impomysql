@@ -472,9 +472,10 @@ We will repeat the `originalSql`/`MutatedSql` of each bug `execNum`(recommended 
 You can also use the following command to check the entire taskpool:
 
 ```shell
-./impomysql ckstable taskpool taskPoolConfigPath execNum
+./impomysql ckstable taskpool taskPoolConfigPath threadNum execNum
+# although we can read threadNum from config file, we think it is more flexible to specify the threadNum on the command line.
 # for example
-./impomysql ckstable taskpool ./resources/taskpoolconfig.json 10
+./impomysql ckstable taskpool ./resources/taskpoolconfig.json 16 10
 ```
 
 Note that we use `maystable` instead of `stable`. Yes, it is very difficult to check whether a bug is stable. 
@@ -484,7 +485,7 @@ If you find some strange problems in the following chapters, first consider whet
 #### example
 
 ```shell
-./impomysql ckstable taskpool ./resources/taskpoolconfig.json 10
+./impomysql ckstable taskpool ./resources/taskpoolconfig.json 16 10
 ```
 
 Take `./output/mysql/task0` as an example, you will see 2 new directories `maystable` and `unstable`. 
@@ -500,6 +501,8 @@ The directory `unstable` is empty, means that all bugs under `task0` are stable 
 For a task, you can use the following command to simplify the sql statements of `stable` bugs:
 
 ```shell
+./impomysql sqlsim task taskConfigPath
+# for example
 ./impomysql sqlsim task ./output/mysql/task-0-config.json
 ```
 
@@ -510,7 +513,10 @@ After that, you will see a new folder `sqlsim` under `task-0` with some friendly
 You can also use the following command to simplify the entire taskpool:
 
 ```shell
-./impomysql sqlsim taskpool ./resources/taskpoolconfig.json
+./impomysql sqlsim taskpool taskPoolConfigPath threadNum
+# although we can read threadNum from config file, we think it is more flexible to specify the threadNum on the command line.
+# for example 
+./impomysql sqlsim taskpool ./resources/taskpoolconfig.json 16
 ```
 
 At present, `sqlsim` can only do some simple simplifications, we will make it better in the future.
@@ -518,7 +524,7 @@ At present, `sqlsim` can only do some simple simplifications, we will make it be
 #### example
 
 ```shell
-./impomysql sqlsim taskpool ./resources/taskpoolconfig.json
+./impomysql sqlsim taskpool ./resources/taskpoolconfig.json 16
 ```
 
 Task the mutatedSql in `task-0/maystable/bug-0-21-FixMHaving1U.json` and `task-0/sqlsim/bug-0-21-FixMHaving1U.json` as an example, you will see:
@@ -584,10 +590,11 @@ We will update table `affversion` according to the reproduction status of each b
 You can also use the following command to verify the entire taskpool:
 
 ```shell
-./impomysql affversion taskpool taskPoolConfigPath version [whereVersionEQ]
+./impomysql affversion taskpool taskPoolConfigPath threadNum port version [whereVersionEQ]
+# although we can read threadNum from config file, we think it is more flexible to specify the threadNum on the command line.
 # such as:
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 13306 8.0.30
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 13307 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13306 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30
 ```
 
 Note that:
@@ -604,7 +611,7 @@ Note that:
 Run `affversion` :
 
 ```shell
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 13306 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13306 8.0.30
 ```
 
 You will see a new sqlite database under  `./output/mysql`, and a table `affversion`:
@@ -630,7 +637,7 @@ sudo docker run -itd --name mysqltest2 -p 13307:3306 -e MYSQL_ROOT_PASSWORD=1234
 Run `affversion` again:
 
 ```shell
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 13307 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30
 ```
 
 See table `affversion`:

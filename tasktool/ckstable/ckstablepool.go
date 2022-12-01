@@ -15,7 +15,7 @@ import (
 )
 
 // CheckStableTaskPool: like task and task pool, see CheckStableTask
-func CheckStableTaskPool(config *task.TaskPoolConfig, execNum int) error {
+func CheckStableTaskPool(config *task.TaskPoolConfig, threadNum int, execNum int) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
 	exists, err := pathExists(taskPoolPath)
@@ -42,7 +42,7 @@ func CheckStableTaskPool(config *task.TaskPoolConfig, execNum int) error {
 
 	// create connectors pool
 	connPool, err := connector.NewConnectorPool(config.Host, config.Port, config.Username, config.Password,
-		config.DbPrefix, config.ThreadNum)
+		config.DbPrefix, threadNum)
 	if err != nil {
 		return err
 	}
