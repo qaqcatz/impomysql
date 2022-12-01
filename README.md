@@ -544,10 +544,10 @@ You may need to verify which DBMS versions a logical bug affects.
 For a task, you can use `affversion` to verify if the bugs under sqlsim can be reproduced on the specified version of DBMS:
 
 ```shell
-./impomysql affversion task taskConfigPath version [whereVersionEQ]
+./impomysql affversion task taskConfigPath port version [whereVersionEQ]
 # such as:
-./impomysql affversion task ./output/mysql/task-0-config.json 8.0.30
-./impomysql affversion task ./output/mysql/task-0-config.json 5.7 8.0.30
+./impomysql affversion task ./output/mysql/task-0-config.json 13306 8.0.30
+./impomysql affversion task ./output/mysql/task-0-config.json 13307 5.7 8.0.30
 ```
 
 We will create a sqlite database `affversion.db` under the sibling directory of the task's path with a table:
@@ -559,6 +559,8 @@ CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `vers
 * `taskId`: the id of the task, e.g. 0, 1, 2, ...
 
 *  `bugJsonName`: the json file name of the bug, e.g. bug-0-21-FixMHaving1U, you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
+
+* `port`: although we can read port from config file, we think it is more flexible to specify the port on the command line.
 
 * `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
 
@@ -584,8 +586,8 @@ You can also use the following command to verify the entire taskpool:
 ```shell
 ./impomysql affversion taskpool taskPoolConfigPath version [whereVersionEQ]
 # such as:
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 8.0.30
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 13306 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 13307 5.7 8.0.30
 ```
 
 Note that:
@@ -602,7 +604,7 @@ Note that:
 Run `affversion` :
 
 ```shell
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 13306 8.0.30
 ```
 
 You will see a new sqlite database under  `./output/mysql`, and a table `affversion`:
@@ -622,14 +624,13 @@ It means that all bugs can be reproduced on `mysql 8.0.30`.
 Then deploy `mysql 5.7`:
 
 ```shell
-sudo docker stop mysqltest
-sudo docker run -itd --name mysqltest2 -p 13306:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
+sudo docker run -itd --name mysqltest2 -p 13307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.7
 ```
 
 Run `affversion` again:
 
 ```shell
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 13307 5.7 8.0.30
 ```
 
 See table `affversion`:
