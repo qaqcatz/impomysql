@@ -151,4 +151,5 @@ const (
 		"key (`c1`)," +
 		"key (`c1_u`)) character set utf8\npartition by hash(pk)\npartitions 2;"
 	SQLINSERT = "INSERT INTO CT VALUES (0,1,1),(1,2,2),(2,3,3);"
+	SQLBinaryOp = "SELECT * FROM COMPANY WHERE ID = 1 OR ID = 2;"
 )

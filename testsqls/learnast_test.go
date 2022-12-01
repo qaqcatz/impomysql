@@ -155,3 +155,7 @@ func TestLearnASTCreateAndInsert(t *testing.T) {
 		t.Log(sql)
 	}
 }
+
+func TestLearnASTBinaryOp(t *testing.T) {
+	testLearnASTCommon(t, SQLBinaryOp)
+}
