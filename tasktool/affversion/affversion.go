@@ -32,6 +32,9 @@ var affVersionLock sync.Mutex
 // - `bugJsonName`: the json file name of a bug, e.g. bug-0-21-FixMHaving1U,
 // you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
 //
+// - `port`: although we can read port from config file,
+// we think it is more flexible to specify the port on the command line.
+//
 // - `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
 // `version` can be an arbitrary non-empty string, it is recommended to use tag or commit id.
 // `status`: 1-yes; 0-no; -1-error.
@@ -48,7 +51,7 @@ var affVersionLock sync.Mutex
 //   WHERE NOT EXISTS
 //   (SELECT * from `affversion`
 //   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
-func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, version string, whereVersionEQ string) error {
+func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, port int, version string, whereVersionEQ string) error {
 	if version == "" {
 		return errors.New("[AffVersionTask]version empty")
 	}
@@ -91,7 +94,7 @@ func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, ve
 	if publicConn != nil {
 		conn = publicConn
 	} else {
-		conn, err = connector.NewConnector(config.Host, config.Port, config.Username, config.Password, config.DbName)
+		conn, err = connector.NewConnector(config.Host, port, config.Username, config.Password, config.DbName)
 		if err != nil {
 			return err
 		}

@@ -15,7 +15,7 @@ import (
 )
 
 // AffVersionTaskPool: like task and task pool, see AffVersionTask
-func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersionEQ string) error {
+func AffVersionTaskPool(config *task.TaskPoolConfig, port int, version string, whereVersionEQ string) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
 	exists, err := pathExists(taskPoolPath)
@@ -41,7 +41,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 	logger.SetLevel(logrus.InfoLevel)
 
 	// create connectors pool
-	connPool, err := connector.NewConnectorPool(config.Host, config.Port, config.Username, config.Password,
+	connPool, err := connector.NewConnectorPool(config.Host, port, config.Username, config.Password,
 		config.DbPrefix, config.ThreadNum)
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 		conn := connPool.WaitForFree()
 		waitGroup.Add(1)
 		go PrepareAndRunAffVersionTask(taskConfigJsonPath, &waitGroup, conn, connPool,
-			version, whereVersionEQ)
+			port, version, whereVersionEQ)
 	}
 	waitGroup.Wait()
 	logger.Info("Finished!")
@@ -94,7 +94,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, version string, whereVersio
 func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 	waitGroup *sync.WaitGroup,
 	conn *connector.Connector, connPool *connector.ConnectorPool,
-	version string, whereVersionEQ string) {
+	port int, version string, whereVersionEQ string) {
 
 	defer func() {
 		connPool.BackToPool(conn)
@@ -105,7 +105,7 @@ func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 	if err != nil {
 		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]new task config error: %+v\n", err))
 	}
-	err = AffVersionTask(taskConfig, conn, version, whereVersionEQ)
+	err = AffVersionTask(taskConfig, conn, port, version, whereVersionEQ)
 	if err != nil {
 		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task error: %+v\n", err))
 	}
