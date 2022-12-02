@@ -53,7 +53,6 @@ func (v *rmHintVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-// rmHint: remove optimization hint
 func rmHintUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
