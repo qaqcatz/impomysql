@@ -1,9 +1,9 @@
 package stage2
 
 import (
-	"github.com/pkg/errors"
-	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pingcap/tidb/parser/ast"
+	_ "github.com/pingcap/tidb/parser/test_driver"
+	"github.com/pkg/errors"
 	"reflect"
 )
 
@@ -12,7 +12,8 @@ func (v *MutateVisitor) addFixMDistinctL(in *ast.SelectStmt, flag int) {
 	// ERROR 3065 (HY000): Expression #1 of ORDER BY clause is not in SELECT list,
 	// references column xxx which is not in SELECT list; this is incompatible with DISTINCT
 	// order by + distinct may error
-	if in.Distinct == false && in.OrderBy == nil {
+	// with + distinct is hard to simplify, ban it.
+	if in.Distinct == false && in.OrderBy == nil && in.With == nil {
 		v.addCandidate(FixMDistinctL, 0, in, flag)
 	}
 }
