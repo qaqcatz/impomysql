@@ -116,11 +116,13 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	return nil
 }
 
-var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector) error {
+var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector) error{
 	rmWith,
 	rmUnion,
 	rmHint,
 	rmOrderBy,
+	rmBinOpTrue,
+	rmBinOpFalse,
 }
 
 func SimDML(bug *task.BugReport, conn *connector.Connector) error {
