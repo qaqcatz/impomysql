@@ -3,7 +3,7 @@ tables = {
     -- SHOW CHARACTER SET;
     charsets = {'utf8'},
     -- partition number
-    partitions = {2},
+    -- partitions = {2},
 }
 
 --tables = {
