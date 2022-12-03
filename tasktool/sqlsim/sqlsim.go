@@ -19,6 +19,15 @@ import (
 // 1. mkdir sqlsim, read bugs and ddl in task path if exists, create connector
 //
 // 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim. see SqlSim.
+//
+// Update: During affversion, we found that some new features cannot run on the old version of DBMS.
+// We will try to remove simplify these new features in sqlsim.
+//
+// There are a lot of functions with prefix rm or frm in sqlsim.
+//
+// - rm means it is a normal simplified function.
+//
+// - frm means it is responsible for simplifying new features.
 func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error {
 	// 1. mkdir sqlsim, read bugs and ddl in task path if exist, create connector
 	ddlPath := config.DDLPath
@@ -116,14 +125,15 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	return nil
 }
 
+// do not adjust the order!
 var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector) error{
-	rmWith,
+	frmWith,
 	rmUnion,
-	rmHint,
+	frmHint,
 	rmOrderBy,
 	rmBinOpTrue,
 	rmBinOpFalse,
-	rmCharset,
+	frmCharset,
 }
 
 func SimDML(bug *task.BugReport, conn *connector.Connector) error {

@@ -10,13 +10,13 @@ import (
 	"github.com/qaqcatz/impomysql/task"
 )
 
-// rmCharset: remove charset
-func rmCharset(bug *task.BugReport, conn *connector.Connector) error {
-	sql1, err := rmCharsetUnit(bug.OriginalSql)
+// frmCharset: remove charset
+func frmCharset(bug *task.BugReport, conn *connector.Connector) error {
+	sql1, err := frmCharsetUnit(bug.OriginalSql)
 	if err != nil {
 		return err
 	}
-	sql2, err := rmCharsetUnit(bug.MutatedSql)
+	sql2, err := frmCharsetUnit(bug.MutatedSql)
 	if err != nil {
 		return err
 	}
@@ -32,10 +32,10 @@ func rmCharset(bug *task.BugReport, conn *connector.Connector) error {
 	return nil
 }
 
-type rmCharsetVisitor struct {
+type frmCharsetVisitor struct {
 }
 
-func (v *rmCharsetVisitor) Enter(in ast.Node) (ast.Node, bool) {
+func (v *frmCharsetVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	switch in.(type) {
 	case *test_driver.ValueExpr:
 		valueExpr := in.(*test_driver.ValueExpr)
@@ -44,27 +44,27 @@ func (v *rmCharsetVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	return in, false
 }
 
-func (v *rmCharsetVisitor) Leave(in ast.Node) (ast.Node, bool) {
+func (v *frmCharsetVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-func rmCharsetUnit(sql string) (string, error) {
+func frmCharsetUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmCharsetUnit]parse error")
+		return "", errors.Wrap(err, "[frmCharsetUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmCharsetUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[frmCharsetUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
-	v := &rmCharsetVisitor{}
+	v := &frmCharsetVisitor{}
 	(*rootNode).Accept(v)
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[rmCharsetUnit]restore error")
+		return "", errors.Wrap(err, "[frmCharsetUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }

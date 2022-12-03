@@ -9,8 +9,8 @@ import (
 	"github.com/qaqcatz/impomysql/task"
 )
 
-// rmHint: remove optimization hint
-func rmHint(bug *task.BugReport, conn *connector.Connector) error {
+// frmHint: remove optimization hint
+func frmHint(bug *task.BugReport, conn *connector.Connector) error {
 	sql2 := []*string {
 		&(bug.OriginalSql),
 		&(bug.MutatedSql),
@@ -20,7 +20,7 @@ func rmHint(bug *task.BugReport, conn *connector.Connector) error {
 		&(bug.MutatedResult),
 	}
 	for i := 0; i < 2; i++ {
-		tempSql, err := rmHintUnit(*sql2[i])
+		tempSql, err := frmHintUnit(*sql2[i])
 		if err != nil {
 			return err
 		}
@@ -37,10 +37,10 @@ func rmHint(bug *task.BugReport, conn *connector.Connector) error {
 	return nil
 }
 
-type rmHintVisitor struct {
+type frmHintVisitor struct {
 }
 
-func (v *rmHintVisitor) Enter(in ast.Node) (ast.Node, bool) {
+func (v *frmHintVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	switch in.(type) {
 	case *ast.TableName:
 		tb := in.(*ast.TableName)
@@ -49,27 +49,27 @@ func (v *rmHintVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	return in, false
 }
 
-func (v *rmHintVisitor) Leave(in ast.Node) (ast.Node, bool) {
+func (v *frmHintVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-func rmHintUnit(sql string) (string, error) {
+func frmHintUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmHintUnit]parse error")
+		return "", errors.Wrap(err, "[frmHintUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmHintUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[frmHintUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
-	v := &rmHintVisitor{}
+	v := &frmHintVisitor{}
 	(*rootNode).Accept(v)
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[rmHintUnit]restore error")
+		return "", errors.Wrap(err, "[frmHintUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }

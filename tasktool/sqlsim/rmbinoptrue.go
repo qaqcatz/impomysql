@@ -10,6 +10,7 @@ import (
 	"github.com/qaqcatz/impomysql/task"
 )
 
+// rmBinOpTrue: xxx AND/OR xxx -> 1 AND/OR xxx | xxx AND/OR 1
 func rmBinOpTrue(bug *task.BugReport, conn *connector.Connector) error {
 	sql2 := []*string{
 		&(bug.OriginalSql),
