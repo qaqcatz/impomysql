@@ -601,11 +601,10 @@ You can also use the following command to verify the entire taskpool:
 Note that:
 
 * You need to deploy the specified version of DBMS yourself.
-* make sure you have executed `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them.
+* Make sure you have executed `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them. 
+Of course, if a new feature cannot be simplified, it is likely to be the root cause of the bug.
 
-> You may need to locate the root cause of a bug on git commits.
-> 
->  We will provide some dockerfiles for compiling the DBMSs in the future.
+> Actually, we will verify which features in ./resources/impo.yy can not run on mysql 5.0.15 (the oldest version in mysql download page: https://downloads.mysql.com/archives/community/), and try to remove them.
 
 #### example
 

@@ -21,7 +21,9 @@ import (
 // 2. for each bug in bugs, simplify (ddl, bug) and save the result in sqlsim. see SqlSim.
 //
 // Update: During affversion, we found that some new features cannot run on the old version of DBMS.
-// We will try to remove simplify these new features in sqlsim.
+// We will try to simplify these new features in sqlsim.
+// Actually, we will verify which features in ./resources/impo.yy can not run on mysql 5.0.15 (the oldest version in
+// mysql download page: https://downloads.mysql.com/archives/community/), and try to remove them.
 //
 // There are a lot of functions with prefix rm or frm in sqlsim.
 //
