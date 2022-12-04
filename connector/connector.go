@@ -21,7 +21,7 @@ type Connector struct {
 
 // NewConnector: create Connector. CREATE DATABASE IF NOT EXISTS dbname + USE dbname when dbname != ""
 func NewConnector(host string, port int, username string, password string, dbname string) (*Connector, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?allowOldPasswords=true",
 		username, password, host, port, "")
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
