@@ -60,7 +60,7 @@ func rmBinOpTrueAllUnit(sql string, result *connector.Result, conn *connector.Co
 
 		tempResult := conn.ExecSQL(tempSql)
 		if tempResult.Err != nil {
-			return sql, tempResult.Err
+			continue
 		}
 		cmp, err := tempResult.CMP(result)
 		if err == nil && cmp == 0 {
