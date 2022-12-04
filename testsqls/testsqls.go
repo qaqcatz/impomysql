@@ -153,4 +153,5 @@ const (
 	SQLINSERT    = "INSERT INTO CT VALUES (0,1,1),(1,2,2),(2,3,3);"
 	SQLBinaryOp  = "SELECT * FROM COMPANY WHERE ID = 1 OR ID = 2;"
 	SQLBinaryOp2 = "SELECT * FROM COMPANY WHERE (AGE > 18 AND AGE < 20) AND 2 > 1 OR 2 < 1 AND (3 > 1 AND 4 > 1) OR 3 < 1 OR 4 < 1;"
-)
+	SQLTimeFunc = "SELECT to_seconds('1998-06-24 00:00:01') FROM COMPANY WHERE to_seconds('1998-05-01 00:00:01') > 0;"
+	)
