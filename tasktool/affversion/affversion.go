@@ -39,11 +39,12 @@ var affVersionLock sync.Mutex
 // `version` can be an arbitrary non-empty string, it is recommended to use tag or commit id.
 // `status`: 1-yes; 0-no; -1-error.
 //
-// If whereVersionEQ == "", we will verify each bug under config.GetTaskPath()/sqlsim,
+// `whereVersionStatus` format: version@status.
+// If whereVersionStatus == "", we will verify each bug under config.GetTaskPath()/sqlsim,
 //
 // else we will only verify these bugs:
 //   SELECT `bugJsonName` FROM `affversion`
-//   WHERE `taskId` = config.TaskId AND `version` = whereVersionEQ AND `status`=1
+//   WHERE `taskId` = config.TaskId AND `version` = version AND `status`=status
 //
 // According to the reproduction status of the bug, we will insert a new record to `affversion`:
 //   INSERT INTO `affversion` (`taskId`, `bugJsonName`, `version`, `status`)
@@ -51,7 +52,7 @@ var affVersionLock sync.Mutex
 //   WHERE NOT EXISTS
 //   (SELECT * from `affversion`
 //   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
-func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, port int, version string, whereVersionEQ string) error {
+func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, port int, version string, whereVersionStatus string) error {
 	if version == "" {
 		return errors.New("[AffVersionTask]version empty")
 	}
@@ -101,17 +102,26 @@ func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, po
 	}
 
 	var bugJsonNames []string
-	if whereVersionEQ == "" {
+	if whereVersionStatus == "" {
 		//  verify each bug under sqlSimPath
 		bugJsonNames, err = getBugsFromDir(sqlSimPath)
 		if err != nil {
 			return err
 		}
 	} else {
+		sp := strings.Split(whereVersionStatus, "@")
+		if len(sp) != 2 {
+			return errors.New("[AffVersionTask]whereVersionStatus format: version@status")
+		}
+		whereVersion := sp[0]
+		whereStatus, err := strconv.Atoi(sp[1])
+		if err != nil {
+			return errors.Wrap(err, "[AffVersionTask]whereVersionStatus format: version@status, status should be an integer.")
+		}
 		// only verify these bugs:
 		//   SELECT `bugJsonName` FROM `affversion`
-		//   WHERE `taskId` = config.TaskId AND `version` = whereVersionEQ AND `status`=1
-		bugJsonNames, err = getBugsFromDB(affVersionDB, config.TaskId, whereVersionEQ)
+		//   WHERE `taskId` = config.TaskId AND `version` = version AND `status`=status
+		bugJsonNames, err = getBugsFromDB(affVersionDB, config.TaskId, whereVersion, whereStatus)
 	}
 
 	if len(bugJsonNames) != 0 {
@@ -147,13 +157,13 @@ func getBugsFromDir(bugsPath string) ([]string, error) {
 	return bugJsonNames, nil
 }
 
-func getBugsFromDB(db *sql.DB, taskId int, whereVersionEQ string) ([]string, error) {
+func getBugsFromDB(db *sql.DB, taskId int, whereVersion string, whereStatus int) ([]string, error) {
 	bugJsonNames := make([]string, 0)
 
 	rows, err := db.Query(`SELECT bugJsonName FROM affversion WHERE 
 	taskId = `+strconv.Itoa(taskId)+` AND 
-    version = '`+whereVersionEQ+`' AND 
-    status=1`)
+    version = '`+ whereVersion +`' AND 
+    status = `+strconv.Itoa(whereStatus))
 	if err != nil {
 		return nil, errors.Wrap(err, "[getBugsFromDB]select bugs error")
 	}

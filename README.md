@@ -551,10 +551,10 @@ You may need to verify which DBMS versions a logical bug affects.
 For a task, you can use `affversion` to verify if the bugs under sqlsim can be reproduced on the specified version of DBMS:
 
 ```shell
-./impomysql affversion task taskConfigPath port version [whereVersionEQ]
+./impomysql affversion task taskConfigPath port version [whereVersionStatus]
 # such as:
 ./impomysql affversion task ./output/mysql/task-0-config.json 13306 8.0.30
-./impomysql affversion task ./output/mysql/task-0-config.json 13307 5.7 8.0.30
+./impomysql affversion task ./output/mysql/task-0-config.json 13307 5.7 8.0.30@1
 ```
 
 We will create a sqlite database `affversion.db` under the sibling directory of the task's path with a table:
@@ -575,15 +575,15 @@ CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `vers
   
   `status`: 1-yes; 0-no; -1-error.
 
-* `whereVersionEQ`:
+* `whereVersionStatus`: format: version@status.
 
-* If `whereVersionEQ` == "", we will verify each bug under task-`taskId`/sqlsim, 
+* If `whereVersionStatus` == "", we will verify each bug under task-`taskId`/sqlsim, 
   
   otherwise we will only verify these bugs:
   
   ```sqlite
   SELECT `bugJsonName` FROM `affversion`
-  WHERE `taskId` = taskId AND `version` = whereVersionEQ AND `status` = 1
+  WHERE `taskId` = taskId AND `version` = version AND `status` = status
   ```
 
 We will update table `affversion` according to the reproduction status of each bug.
@@ -595,7 +595,7 @@ You can also use the following command to verify the entire taskpool:
 # although we can read threadNum from config file, we think it is more flexible to specify the threadNum on the command line.
 # such as:
 ./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13306 8.0.30
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30@1
 ```
 
 Note that:
@@ -603,7 +603,7 @@ Note that:
 * You need to deploy the specified version of DBMS yourself.
 * Make sure you have done `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them. 
 Unfortunately, perfect simplification is almost impossible. 
-If a sql cannot be executed on the old version, you'd better check it manually, ~~or just ignore it.~~
+If a sql cannot be executed on the old version, you'd better check it manually. ~~or just ignore it.~~
 
 > Actually, we will verify which features in ./resources/impo.yy can not run on mysql 5.0.15 (the oldest version in mysql download page: https://downloads.mysql.com/archives/community/), and try to remove them.
 
@@ -638,7 +638,7 @@ sudo docker run -itd --name mysqltest2 -p 13307:3306 -e MYSQL_ROOT_PASSWORD=1234
 Run `affversion` again:
 
 ```shell
-./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30
+./impomysql affversion taskpool ./resources/taskpoolconfig.json 16 13307 5.7 8.0.30@1
 ```
 
 See table `affversion`:
