@@ -26,7 +26,7 @@ func frmTimeFunc(bug *task.BugReport, conn *connector.Connector) error {
 	res1 := conn.ExecSQL(sql1)
 	res2 := conn.ExecSQL(sql2)
 	check, err := oracle.Check(res1, res2, bug.IsUpper)
-	if !check {
+	if err == nil && !check {
 		bug.OriginalSql = sql1
 		bug.OriginalResult = res1
 		bug.MutatedSql = sql2
