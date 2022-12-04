@@ -8,17 +8,18 @@ import (
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/task"
+	"strings"
 )
 
 // frmInfoFunc: remove information function:
 //
-// format_bytes -> CHARSET
+// format_bytes -> charset
 func frmInfoFunc(bug *task.BugReport, conn *connector.Connector) error {
-	sql1, err := frmTimeFuncUnit(bug.OriginalSql)
+	sql1, err := frmInfoFuncUnit(bug.OriginalSql)
 	if err != nil {
 		return err
 	}
-	sql2, err := frmTimeFuncUnit(bug.MutatedSql)
+	sql2, err := frmInfoFuncUnit(bug.MutatedSql)
 	if err != nil {
 		return err
 	}
@@ -41,9 +42,9 @@ func (v *frmInfoFuncVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	switch in.(type) {
 	case *ast.FuncCallExpr:
 		funcCall := in.(*ast.FuncCallExpr)
-		if funcCall.FnName.String() == "format_bytes" {
-			funcCall.FnName.O = "CHARSET"
-			funcCall.FnName.L = "CHARSET"
+		if strings.ToLower(funcCall.FnName.String()) == "format_bytes" {
+			funcCall.FnName.O = "charset"
+			funcCall.FnName.L = "charset"
 		}
 	}
 	return in, false

@@ -11,15 +11,15 @@ import (
 	"strings"
 )
 
-// frmTimeFunc: remove time function:
+// frmStrFunc: remove string function:
 //
-// to_seconds -> unix_timestamp
-func frmTimeFunc(bug *task.BugReport, conn *connector.Connector) error {
-	sql1, err := frmTimeFuncUnit(bug.OriginalSql)
+// to_base64 -> oct
+func frmStrFunc(bug *task.BugReport, conn *connector.Connector) error {
+	sql1, err := frmStrFuncUnit(bug.OriginalSql)
 	if err != nil {
 		return err
 	}
-	sql2, err := frmTimeFuncUnit(bug.MutatedSql)
+	sql2, err := frmStrFuncUnit(bug.MutatedSql)
 	if err != nil {
 		return err
 	}
@@ -35,42 +35,42 @@ func frmTimeFunc(bug *task.BugReport, conn *connector.Connector) error {
 	return nil
 }
 
-type frmTimeFuncVisitor struct {
+type frmStrFuncVisitor struct {
 }
 
-func (v *frmTimeFuncVisitor) Enter(in ast.Node) (ast.Node, bool) {
+func (v *frmStrFuncVisitor) Enter(in ast.Node) (ast.Node, bool) {
 	switch in.(type) {
 	case *ast.FuncCallExpr:
 		funcCall := in.(*ast.FuncCallExpr)
-		if strings.ToLower(funcCall.FnName.String()) == "to_seconds" {
-			funcCall.FnName.O = "unix_timestamp"
-			funcCall.FnName.L = "unix_timestamp"
+		if strings.ToLower(funcCall.FnName.String()) == "to_base64" {
+			funcCall.FnName.O = "oct"
+			funcCall.FnName.L = "oct"
 		}
 	}
 	return in, false
 }
 
-func (v *frmTimeFuncVisitor) Leave(in ast.Node) (ast.Node, bool) {
+func (v *frmStrFuncVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-func frmTimeFuncUnit(sql string) (string, error) {
+func frmStrFuncUnit(sql string) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[frmTimeFuncUnit]parse error")
+		return "", errors.Wrap(err, "[frmStrFuncUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[frmTimeFuncUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[frmStrFuncUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
-	v := &frmTimeFuncVisitor{}
+	v := &frmStrFuncVisitor{}
 	(*rootNode).Accept(v)
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[frmTimeFuncUnit]restore error")
+		return "", errors.Wrap(err, "[frmStrFuncUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }
