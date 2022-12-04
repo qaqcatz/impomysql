@@ -136,6 +136,7 @@ var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector
 	rmBinOpTrue,
 	rmBinOpFalse,
 	frmTimeFunc,
+	frmInfoFunc,
 	frmCharset,
 }
 
