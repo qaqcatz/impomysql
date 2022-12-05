@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/impomysql/tasktool/affversion"
-	"github.com/qaqcatz/impomysql/tasktool/ckstable"
-	"github.com/qaqcatz/impomysql/tasktool/sqlsim"
+	"github.com/qaqcatz/impomysql/tool/affversion"
+	"github.com/qaqcatz/impomysql/tool/ckstable"
+	"github.com/qaqcatz/impomysql/tool/sqlsim"
 	"log"
 	"os"
 	"strconv"
