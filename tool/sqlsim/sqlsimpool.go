@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -104,6 +105,6 @@ func PrepareAndRunSqlSimTask(taskConfigJsonPath string,
 	}
 	err = SqlSimTask(taskConfig, conn)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunSqlSimTask]sqlsim task error: %+v\n", err))
+		panic(fmt.Sprintf("[PrepareAndRunSqlSimTask]sqlsim task "+strconv.Itoa(taskConfig.TaskId)+" error: %+v\n", err))
 	}
 }

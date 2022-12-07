@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -104,6 +105,6 @@ func PrepareAndRunCKStableTask(taskConfigJsonPath string,
 	}
 	err = CheckStableTask(taskConfig, conn, execNum)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunCKStableTask]ckstable task error: %+v\n", err))
+		panic(fmt.Sprintf("[PrepareAndRunCKStableTask]ckstable task "+strconv.Itoa(taskConfig.TaskId)+" error: %+v\n", err))
 	}
 }

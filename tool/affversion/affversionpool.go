@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -107,6 +108,6 @@ func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 	}
 	err = AffVersionTask(taskConfig, conn, port, version, whereVersionEQ)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task error: %+v\n", err))
+		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task "+strconv.Itoa(taskConfig.TaskId)+" error: %+v\n", err))
 	}
 }
