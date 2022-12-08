@@ -26,14 +26,18 @@ var affVersionLock sync.Mutex
 //
 // We will create a sqlite database `affversion.db` under the sibling directory of config.GetTaskPath() with a table:
 //   CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `version` TEXT, `status` INT);
+//   CREATE INDEX IF NOT EXISTS `tv` ON `affversion` (`taskId`, `version`);
+//
+// If a bug has already been checked, we will skip it. Specifically, we will execute the following query:
+//   SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version);
+//
+// - `port`: although we can read port from config file,
+// we think it is more flexible to specify the port on the command line.
 //
 // - `taskId`: the id of a task, e.g. 0, 1, 2, ...
 //
 // - `bugJsonName`: the json file name of a bug, e.g. bug-0-21-FixMHaving1U,
 // you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
-//
-// - `port`: although we can read port from config file,
-// we think it is more flexible to specify the port on the command line.
 //
 // - `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
 // `version` can be an arbitrary non-empty string, it is recommended to use tag or commit id.
@@ -43,15 +47,10 @@ var affVersionLock sync.Mutex
 // If whereVersionStatus == "", we will verify each bug under config.GetTaskPath()/sqlsim,
 //
 // else we will only verify these bugs:
-//   SELECT `bugJsonName` FROM `affversion`
-//   WHERE `taskId` = config.TaskId AND `version` = version AND `status`=status
+//   SELECT `bugJsonName` FROM `affversion` WHERE `taskId` = config.TaskId AND `version` = version AND `status`=status
 //
 // According to the reproduction status of the bug, we will insert a new record to `affversion`:
-//   INSERT INTO `affversion` (`taskId`, `bugJsonName`, `version`, `status`)
-//   SELECT taskId, bugJsonName, version, status
-//   WHERE NOT EXISTS
-//   (SELECT * from `affversion`
-//   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
+//   INSERT INTO `affversion` VALUES (taskId, bugJsonName, version, status)
 func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, port int, version string, whereVersionStatus string) error {
 	if version == "" {
 		return errors.New("[AffVersionTask]version empty")
@@ -89,6 +88,10 @@ func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, po
 	if err != nil {
 		return errors.Wrap(err, "[AffVersionTask]create table error")
 	}
+	_, err = affVersionDB.Exec(`CREATE INDEX IF NOT EXISTS tv ON affversion (taskId, version);`)
+	if err != nil {
+		return errors.Wrap(err, "[AffVersionTask]create index error")
+	}
 
 	// create mysql connector
 	var conn *connector.Connector = nil
@@ -122,6 +125,11 @@ func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, po
 		//   SELECT `bugJsonName` FROM `affversion`
 		//   WHERE `taskId` = config.TaskId AND `version` = version AND `status`=status
 		bugJsonNames, err = getBugsFromDB(affVersionDB, config.TaskId, whereVersion, whereStatus)
+	}
+
+	bugJsonNames, err = filterExists(affVersionDB, config.TaskId, version, bugJsonNames)
+	if err != nil {
+		return err
 	}
 
 	if len(bugJsonNames) != 0 {
@@ -183,6 +191,35 @@ func getBugsFromDB(db *sql.DB, taskId int, whereVersion string, whereStatus int)
 	return bugJsonNames, nil
 }
 
+func filterExists(db *sql.DB, taskId int, version string, oldBugJsonNames []string) ([]string, error) {
+	// SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version);
+	rows, err := db.Query(`SELECT bugJsonName FROM affversion WHERE taskId = `+strconv.Itoa(taskId)+` AND version = '`+ version +`';`)
+	if err != nil {
+		return nil, errors.Wrap(err, "[filterExists]select bugs error")
+	}
+	defer rows.Close()
+	bugJsonNamesMap := make(map[string]bool, 0)
+	for rows.Next() {
+		var bugJsonName string
+		err = rows.Scan(&bugJsonName)
+		if err != nil {
+			return nil, errors.Wrap(err, "[filterExists]scan row error")
+		}
+		bugJsonNamesMap[bugJsonName] = true
+	}
+	if rows.Err() != nil {
+		return nil, errors.Wrap(rows.Err(), "[filterExists]rows err")
+	}
+
+	bugJsonNames := make([]string, 0)
+	for _, bugJsonName := range oldBugJsonNames {
+		if _, ok := bugJsonNamesMap[bugJsonName]; !ok {
+			bugJsonNames = append(bugJsonNames, bugJsonName)
+		}
+	}
+	return bugJsonNames, nil
+}
+
 func doVerify(bugJsonPath string, taskId int, bugJsonName string,
 	version string, affVersionDB *sql.DB,
 	conn *connector.Connector) error {
@@ -208,19 +245,12 @@ func doVerify(bugJsonPath string, taskId int, bugJsonName string,
 
 	affVersionLock.Lock()
 
-	//   INSERT INTO `affversion` (`taskId`, `bugJsonName`, `version`, `status`)
-	//   SELECT taskId, bugJsonName, version, status
-	//   WHERE NOT EXISTS
-	//   (SELECT * from `affversion`
-	//   WHERE `taskId`=taskId AND `bugJsonName`=bugJsonName AND `version`=version AND `status`=status);
-	_, err = affVersionDB.Exec(`INSERT INTO affversion (taskId, bugJsonName, version, status)
-	  SELECT `+strconv.Itoa(taskId)+`, '`+bugJsonName+`', '`+version+`', `+strconv.Itoa(status)+` 
-	  WHERE NOT EXISTS
-	  (SELECT * from affversion
-	  WHERE taskId=`+strconv.Itoa(taskId)+` AND 
-	  bugJsonName='`+bugJsonName+`' AND 
-	  version='`+version+`' AND 
-	  status=`+strconv.Itoa(status)+`);`)
+	// INSERT INTO `affversion` VALUES (taskId, bugJsonName, version, status)
+	_, err = affVersionDB.Exec(`INSERT INTO affversion VALUES (`+
+		strconv.Itoa(taskId)+`, '`+
+		bugJsonName+`', '`+
+		version+`', `+
+		strconv.Itoa(status)+`);`)
 	if err != nil {
 		return errors.Wrap(err, "[doVerify]insert bug error")
 	}

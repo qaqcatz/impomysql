@@ -561,13 +561,20 @@ We will create a sqlite database `affversion.db` under the sibling directory of 
 
 ```sqlite
 CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `version` TEXT, `status` INT);
+CREATE INDEX IF NOT EXISTS `tv` ON `affversion` (`taskId`, `version`);
 ```
+
+If a bug has already been checked, we will skip it. Specifically, we will execute the following query:
+
+```sqlite
+SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version);
+```
+
+* `port`: although we can read port from config file, we think it is more flexible to specify the port on the command line.
 
 * `taskId`: the id of the task, e.g. 0, 1, 2, ...
 
 * `bugJsonName`: the json file name of the bug, e.g. bug-0-21-FixMHaving1U, you can use task-`taskId`/sqlsim/`bugJsonName` to read the bug.
-
-* `port`: although we can read port from config file, we think it is more flexible to specify the port on the command line.
 
 * `version`, `status`: whether the bug can be reproduced on the specified version of DBMS.
   
@@ -585,8 +592,12 @@ CREATE TABLE IF NOT EXISTS `affversion` (`taskId` INT, `bugJsonName` TEXT, `vers
   SELECT `bugJsonName` FROM `affversion`
   WHERE `taskId` = taskId AND `version` = version AND `status` = status
   ```
+  
+According to the reproduction status of the bug, we will insert a new record to `affversion`:
 
-We will update table `affversion` according to the reproduction status of each bug.
+```sqlite
+INSERT INTO `affversion` VALUES (taskId, bugJsonName, version, status)
+```
 
 You can also use the following command to verify the entire taskpool:
 
