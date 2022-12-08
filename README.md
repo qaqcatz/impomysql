@@ -593,7 +593,6 @@ SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version
   WHERE `taskId` = taskId AND `version` = version AND `status` = status
   ```
   
-
 According to the reproduction status of the bug, we will insert a new record to `affversion`:
 
 ```sqlite
@@ -613,6 +612,7 @@ You can also use the following command to verify the entire taskpool:
 Note that:
 
 * You need to deploy the specified version of DBMS yourself.
+* Old versions may crash or exception, we need to save logs for debugging. logPath: `taskPoolPath/affversion-version.log`
 * Make sure you have done `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them. 
 Unfortunately, perfect simplification is almost impossible. 
 If a sql cannot be executed on the old version, you'd better check it manually. ~~or just ignore it.~~

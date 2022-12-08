@@ -112,7 +112,7 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 		logger.Info("affversionpool:")
 		err = AffVersionTaskPool(config, threadNum, port, image, "")
 		if err != nil {
-			panic("[AffDBDeployer]aff version task pool error: " + err.Error())
+			panic(fmt.Sprintf("[AffDBDeployer]aff version task pool error: %+v", err))
 		}
 	}
 

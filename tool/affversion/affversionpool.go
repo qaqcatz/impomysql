@@ -1,7 +1,6 @@
 package affversion
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/task"
@@ -15,7 +14,9 @@ import (
 	"sync"
 )
 
-// AffVersionTaskPool: like task and task pool, see AffVersionTask
+// AffVersionTaskPool: like task and task pool, see AffVersionTask.
+// Old versions may crash or exception, we need to save logs for debugging.
+//   logPath: taskPoolPath/affversion-version.log
 func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, version string, whereVersionEQ string) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
@@ -28,12 +29,20 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	}
 
 	// create logger
+	loggerPath := path.Join(taskPoolPath, "affversion-"+version+".log")
+	_ = os.Remove(loggerPath)
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
 		DisableColors: true,
 		FullTimestamp: true,
 	})
+	file, err := os.OpenFile(loggerPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	if err != nil {
+		return errors.Wrap(err, "[AffVersionTaskPool]create logger error")
+	}
+	defer file.Close()
 	writers := []io.Writer{
+		file,
 		os.Stdout,
 	}
 	multiWriter := io.MultiWriter(writers...)
@@ -82,7 +91,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 		// wait for a free connector
 		conn := connPool.WaitForFree()
 		waitGroup.Add(1)
-		go PrepareAndRunAffVersionTask(taskConfigJsonPath, &waitGroup, conn, connPool,
+		go PrepareAndRunAffVersionTask(logger, taskConfigJsonPath, &waitGroup, conn, connPool,
 			port, version, whereVersionEQ)
 	}
 	waitGroup.Wait()
@@ -91,7 +100,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	return nil
 }
 
-func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
+func PrepareAndRunAffVersionTask(logger *logrus.Logger, taskConfigJsonPath string,
 	waitGroup *sync.WaitGroup,
 	conn *connector.Connector, connPool *connector.ConnectorPool,
 	port int, version string, whereVersionEQ string) {
@@ -101,12 +110,13 @@ func PrepareAndRunAffVersionTask(taskConfigJsonPath string,
 		waitGroup.Done()
 	}()
 
+	// task may fail due to dbms crash or exception, do not use panic here! just log the error
 	taskConfig, err := task.NewTaskConfig(taskConfigJsonPath)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]new task config error: %+v\n", err))
+		logger.Error("[PrepareAndRunAffVersionTask]new task config error: ", err)
 	}
 	err = AffVersionTask(taskConfig, conn, port, version, whereVersionEQ)
 	if err != nil {
-		panic(fmt.Sprintf("[PrepareAndRunAffVersionTask]sqlsim task "+strconv.Itoa(taskConfig.TaskId)+" error: %+v\n", err))
+		logger.Error("[PrepareAndRunAffVersionTask]affversion task "+strconv.Itoa(taskConfig.TaskId)+" error: ", err)
 	}
 }
