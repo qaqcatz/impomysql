@@ -593,6 +593,7 @@ SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version
   WHERE `taskId` = taskId AND `version` = version AND `status` = status
   ```
   
+
 According to the reproduction status of the bug, we will insert a new record to `affversion`:
 
 ```sqlite
@@ -669,3 +670,19 @@ taskId      bugJsonName                  version     status
 ```
 
 It means that some bugs cannot be reproduced on `mysql 5.7`. You can manually verify yourself.
+
+### 4.4 affdbdeployer
+
+In `affversion`, we need to manually deploy each version of DBMS.
+
+Now this work can be done automatically, see https://github.com/qaqcatz/dbdeployer
+
+With `dbdeployer`, you can use the following command to verify all versions from `newestImage `(empty means the global newest image) to `oldestImage` (epmty means the global oldest image):
+
+```shell
+./impomysql affdbdeployer dbDeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
+# for example
+# ./impomysql ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
+```
+
+Note that before each iteration, we will filter out unreproducible bugs in previous iteration.

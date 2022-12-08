@@ -19,6 +19,7 @@ import (
 // or  sqlsim taskpool taskPoolConfigPath threadNum
 // or  affversion task taskConfigPath port version [whereVersionStatus]
 // or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionStatus]
+// or  affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -35,8 +36,10 @@ func main() {
 		doSqlSim(args)
 	case "affversion":
 		doAffVersion(args)
+	case "affdbdeployer":
+		doAffDBDeployer(args)
 	default:
-		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion")
+		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion, affdbdeployer")
 	}
 }
 
@@ -98,7 +101,7 @@ func doCKStable(args []string) {
 		}
 		threadNum, err := strconv.Atoi(args[4])
 		if err != nil || threadNum <= 0 {
-			log.Fatal("parse threadNum error")
+			log.Fatal("[doCKStable]parse threadNum error")
 		}
 		execNum, err := strconv.Atoi(args[5])
 		if err != nil {
@@ -143,7 +146,7 @@ func doSqlSim(args []string) {
 		}
 		threadNum, err := strconv.Atoi(args[4])
 		if err != nil || threadNum <= 0 {
-			log.Fatal("parse threadNum error")
+			log.Fatal("[doSqlSim]parse threadNum error")
 		}
 		taskPoolConfig, err := task.NewTaskPoolConfig(args[3])
 		if err != nil {
@@ -193,7 +196,7 @@ func doAffVersion(args []string) {
 		}
 		threadNum, err := strconv.Atoi(args[4])
 		if err != nil || threadNum <= 0 {
-			log.Fatal("parse threadNum error")
+			log.Fatal("[doAffVersion]parse threadNum error")
 		}
 		port, err := strconv.Atoi(args[5])
 		if err != nil || port <= 0 {
@@ -216,4 +219,26 @@ func doAffVersion(args []string) {
 	default:
 		log.Fatal("[doAffVersion]please use task, taskpool")
 	}
+}
+
+func doAffDBDeployer(args []string) {
+	// affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
+	if len(args) <= 8 {
+		panic("[doAffDBDeployer]len(args) <= 8")
+	}
+	dbDeployerPath := args[2]
+	dbJsonPath := args[3]
+	taskPoolConfig, err := task.NewTaskPoolConfig(args[4])
+	if err != nil {
+		log.Fatal("[doAffDBDeployer]new task pool config error: ", err)
+	}
+	threadNum, err := strconv.Atoi(args[5])
+	if err != nil || threadNum <= 0 {
+		log.Fatal("[doAffDBDeployer]parse threadNum error")
+	}
+	portInterval := args[6]
+	newestImage := args[7]
+	oldestImage := args[8]
+	affversion.AffDBDeployer(dbDeployerPath, dbJsonPath, taskPoolConfig, threadNum, portInterval,
+		newestImage, oldestImage)
 }
