@@ -18,8 +18,6 @@ import (
 //
 // With dbdeployer, you can use the following command to verify all versions from newestImage to oldestImage:
 //   `./impomysql affdbdeployer dbDeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage`
-//
-// Note that before each iteration, we will filter out unreproducible bugs in previous iteration.
 func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPoolConfig, threadNum int, portStr string,
 	newestImage string, oldestImage string) {
 	port, err := strconv.Atoi(portStr)
@@ -100,7 +98,6 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 	// affversion taskpool taskpoolConfig threadNum image preImage@1
 	logger.Info("Start!")
 	logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-	preImage := ""
 	for i := len(images)-1; i >= 0; i -= 1 {
 		image := images[i]
 		logger.Info("**************************************************")
@@ -113,11 +110,10 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 		}
 		logger.Info("**************************************************")
 		logger.Info("affversionpool:")
-		err = AffVersionTaskPool(config, threadNum, port, image, preImage)
+		err = AffVersionTaskPool(config, threadNum, port, image, "")
 		if err != nil {
 			panic("[AffDBDeployer]aff version task pool error: " + err.Error())
 		}
-		preImage = image + "@1"
 	}
 
 	logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")

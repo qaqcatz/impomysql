@@ -684,5 +684,3 @@ With `dbdeployer`, you can use the following command to verify all versions from
 # for example
 # ./impomysql ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
 ```
-
-Note that before each iteration, we will filter out unreproducible bugs in previous iteration.
