@@ -28,7 +28,6 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	}
 
 	// create logger
-	// 1.2 create logger, write to TaskPoolConfig.GetTaskPoolPath()/taskpool.log and os.Stdout
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
 		DisableColors: true,
