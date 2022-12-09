@@ -20,6 +20,7 @@ import (
 // or  affversion task taskConfigPath port version [whereVersionStatus]
 // or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionStatus]
 // or  affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
+// or  affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -38,8 +39,10 @@ func main() {
 		doAffVersion(args)
 	case "affdbdeployer":
 		doAffDBDeployer(args)
+	case "affclassify":
+		doAffClassify(args)
 	default:
-		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion, affdbdeployer")
+		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion, affdbdeployer, affclassify")
 	}
 }
 
@@ -236,9 +239,23 @@ func doAffDBDeployer(args []string) {
 	if err != nil || threadNum <= 0 {
 		log.Fatal("[doAffDBDeployer]parse threadNum error")
 	}
-	portInterval := args[6]
+	portStr := args[6]
 	newestImage := args[7]
 	oldestImage := args[8]
-	affversion.AffDBDeployer(dbDeployerPath, dbJsonPath, taskPoolConfig, threadNum, portInterval,
+	affversion.AffDBDeployer(dbDeployerPath, dbJsonPath, taskPoolConfig, threadNum, portStr,
 		newestImage, oldestImage)
+}
+
+func doAffClassify(args []string) {
+	// affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
+	if len(args) <= 4 {
+		panic("[doAffClassify]len(args) <= 4")
+	}
+	dbDeployerPath := args[2]
+	dbJsonPath := args[3]
+	taskPoolConfig, err := task.NewTaskPoolConfig(args[4])
+	if err != nil {
+		log.Fatal("[doAffClassify]new task pool config error: ", err)
+	}
+	affversion.AffClassify(dbDeployerPath, dbJsonPath, taskPoolConfig)
 }
