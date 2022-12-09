@@ -46,3 +46,12 @@ func (connPool *ConnectorPool) WaitForFree() *Connector {
 func (connPool *ConnectorPool) BackToPool(conn *Connector) {
 	connPool.ThreadPool <- conn
 }
+
+// ConnectorPool.Close: close all connectors, close channel
+func (connPool *ConnectorPool) Close() {
+	for i := 0; i < connPool.ThreadNum; i++ {
+		conn := <- connPool.ThreadPool
+		conn.Close()
+	}
+	close(connPool.ThreadPool)
+}

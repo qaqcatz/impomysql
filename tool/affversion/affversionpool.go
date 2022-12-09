@@ -57,6 +57,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	if err != nil {
 		return err
 	}
+	defer connPool.Close()
 
 	// for each task config json, call SqlSimTask
 	taskPoolDir, err := ioutil.ReadDir(taskPoolPath)
