@@ -78,10 +78,10 @@ func AffVersionTask(config *task.TaskConfig, publicConn *connector.Connector, po
 	taskSibPath := filepath.Join(config.GetTaskPath(), "..")
 	affVersionDBPath := path.Join(taskSibPath, "affversion.db")
 	affVersionDB, err := sql.Open("sqlite3", affVersionDBPath)
-	defer affVersionDB.Close()
 	if err != nil {
 		return errors.Wrap(err, "[AffVersionTask]open database error")
 	}
+	defer affVersionDB.Close()
 	_, err = affVersionDB.Exec(`CREATE TABLE IF NOT EXISTS affversion (
     taskId INT, bugJsonName TEXT, 
     version TEXT, status INT);`)
