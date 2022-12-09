@@ -114,9 +114,11 @@ func PrepareAndRunAffVersionTask(logger *logrus.Logger, taskConfigJsonPath strin
 	taskConfig, err := task.NewTaskConfig(taskConfigJsonPath)
 	if err != nil {
 		logger.Error("[PrepareAndRunAffVersionTask]new task config error: ", err)
+		return
 	}
 	err = AffVersionTask(taskConfig, conn, port, version, whereVersionEQ)
 	if err != nil {
 		logger.Error("[PrepareAndRunAffVersionTask]affversion task "+strconv.Itoa(taskConfig.TaskId)+" error: ", err)
+		return
 	}
 }
