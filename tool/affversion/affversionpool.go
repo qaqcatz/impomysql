@@ -89,7 +89,7 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 			fds, err := monitorFds()
 			fdNumStr := ""
 			if err != nil {
-				fdNumStr = err.Error()
+				fdNumStr = "error, ignore it"
 			} else {
 				fdNumStr = strconv.Itoa(len(fds))
 			}
