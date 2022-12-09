@@ -1,9 +1,11 @@
 package affversion
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/task"
+	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -83,7 +85,14 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 		// rate
 		if cur > total/20 {
 			cur = 0
-			logger.Info("[Rate]", i, "/", total)
+			fds, err := monitorFds()
+			fdNumStr := ""
+			if err != nil {
+				fdNumStr = err.Error()
+			} else {
+				fdNumStr = strconv.Itoa(len(fds))
+			}
+			logger.Info("[Rate]", i, "/", total, "(fd num: ", fdNumStr, ")")
 		} else {
 			cur += 1
 		}
@@ -96,7 +105,15 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	}
 	waitGroup.Wait()
 	logger.Info("Finished!")
-
+	//logger.Info("debug fds:")
+	//fds, err := monitorFds()
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//} else {
+	//	for _, fd := range fds {
+	//		fmt.Println(fd)
+	//	}
+	//}
 	return nil
 }
 
@@ -121,4 +138,13 @@ func PrepareAndRunAffVersionTask(logger *logrus.Logger, taskConfigJsonPath strin
 		logger.Error("[PrepareAndRunAffVersionTask]affversion task "+strconv.Itoa(taskConfig.TaskId)+" error: ", err)
 		return
 	}
+}
+
+func monitorFds() ([]string, error) {
+	outStream, errStream, err := nanoshlib.Exec(fmt.Sprintf("ls -l /proc/%v/fd", os.Getpid()), -1)
+	if err != nil {
+		return nil, errors.New("[monitorFd]count fd error: " + err.Error() + ": " + errStream)
+	}
+	lines := strings.Split(strings.TrimSpace(string(outStream)), "\n")
+	return lines, nil
 }
