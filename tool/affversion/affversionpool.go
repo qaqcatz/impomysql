@@ -18,7 +18,7 @@ import (
 
 // AffVersionTaskPool: like task and task pool, see AffVersionTask.
 // Old versions may crash or exception, we need to save logs for debugging.
-//   logPath: taskPoolPath/affversion-version.log
+//   logPath: taskPoolPath/affversion-version.log (if version has '/', change to '@')
 func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, version string, whereVersionEQ string) error {
 	// check task pool path
 	taskPoolPath := config.GetTaskPoolPath()
@@ -31,7 +31,8 @@ func AffVersionTaskPool(config *task.TaskPoolConfig, threadNum int, port int, ve
 	}
 
 	// create logger
-	loggerPath := path.Join(taskPoolPath, "affversion-"+version+".log")
+	fmtVersion := strings.ReplaceAll(version, "/", "@")
+	loggerPath := path.Join(taskPoolPath, "affversion-"+fmtVersion+".log")
 	_ = os.Remove(loggerPath)
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{

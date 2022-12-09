@@ -612,7 +612,7 @@ You can also use the following command to verify the entire taskpool:
 Note that:
 
 * You need to deploy the specified version of DBMS yourself.
-* Old versions may crash or exception, we need to save logs for debugging. logPath: `taskPoolPath/affversion-version.log`
+* Old versions may crash or exception, we need to save logs for debugging. logPath: `taskPoolPath/affversion-version.log` (if version has `/`, change to `@`)
 * Make sure you have done `sqlsim`.  Because some new features cannot run on the old version of DBMS, but the bug is not caused by them. 
 Unfortunately, perfect simplification is almost impossible. 
 If a sql cannot be executed on the old version, you'd better check it manually. ~~or just ignore it.~~
