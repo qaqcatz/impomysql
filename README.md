@@ -684,3 +684,29 @@ With `dbdeployer`, you can use the following command to verify all versions from
 # for example
 # ./impomysql ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
 ```
+
+### 4.5 affclassify
+
+Classify bugs according to the versions they affect.
+
+Specifically, for each bug, 
+
+we will calculate the oldest reproducible version `o1v` 
+
+and use it for classification
+
+if the bug can not be reproduced on the previous version of `o1v` (and no error).
+
+Make sure you have done `affversion` or `affdbdeployer`, we will query the database `affversion.db`.
+
+You also need to provide `dbdeployer`, which will tell us the order of each version
+
+So the command is:
+
+```shell script
+./impomysql affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
+# for example
+./impomysql affclassify ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json
+```
+
+We will create `affclassify.json` in taskPoolPath. It is an array of {`o1v`, bug list}.

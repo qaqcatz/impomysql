@@ -20,7 +20,8 @@ type VListPair struct{
 // AffClassify: classify bugs according to the versions they affect.
 //
 // Specifically, for each bug,
-// we will calculate the oldest reproducible version `o1v` and use it for classification.
+// we will calculate the oldest reproducible version `o1v` and use it for classification
+// if the bug can not be reproduced on the previous version of `o1v` (and no error)
 //
 // Make sure you have done `affversion` or `affdbdeployer`, we will query the database `affversion.db`.
 // You also need to provide `dbdeployer`, which will tell us the order of each version
@@ -107,14 +108,56 @@ func AffClassify(dbDeployerPath string, dbJsonPath string, config *task.TaskPool
 		panic("[AffClassify]rows err: " + rows.Err().Error())
 	}
 
+	// select * from affversion where status = 0
+	rows, err = affVersionDB.Query(`SELECT * FROM affversion WHERE status=0;`)
+	if err != nil {
+		panic("[AffClassify]select bugs error: " + err.Error())
+	}
+	defer rows.Close()
+
+	// status0Map: status=0, taskId/sqlsim/bugJsonName@version -> true
+	status0Map := make(map[string]bool)
+	for rows.Next() {
+		var taskId int
+		var bugJsonName string
+		var version string
+		var status int
+		err = rows.Scan(&taskId, &bugJsonName, &version, &status)
+		if err != nil {
+			panic("[AffClassify]scan row error: " + err.Error())
+		}
+
+		bugVersion := "task-"+strconv.Itoa(taskId)+"/sqlsim/"+bugJsonName+"@"+version
+		if status == 0 {
+			status0Map[bugVersion] = true
+		} else {
+			panic("[AffClassify]status must be 0")
+		}
+	}
+	if rows.Err() != nil {
+		panic("[AffClassify]rows err: " + rows.Err().Error())
+	}
+
 	// `o1v` -> bugList
 	vListPairMap := make(map[string][]string)
 	for bug, o1v := range oldest1Map {
-		if bugList, ok := vListPairMap[o1v]; ok {
-			bugList = append(bugList, bug)
-			vListPairMap[o1v] = bugList
+		pv := preV(images, orderMap, o1v)
+		if pv == "" {
+			if bugList, ok := vListPairMap[o1v]; ok {
+				bugList = append(bugList, bug)
+				vListPairMap[o1v] = bugList
+			} else {
+				vListPairMap[o1v] = []string{bug}
+			}
 		} else {
-			vListPairMap[o1v] = []string{bug}
+			if _, ok := status0Map[bug+"@"+pv]; ok {
+				if bugList, ok := vListPairMap[o1v]; ok {
+					bugList = append(bugList, bug)
+					vListPairMap[o1v] = bugList
+				} else {
+					vListPairMap[o1v] = []string{bug}
+				}
+			}
 		}
 	}
 
@@ -162,4 +205,18 @@ func vcmp(orderMap map[string]int, v1 string, v2 string) int {
 	} else {
 		return 1
 	}
+}
+
+func preV(images []string, orderMap map[string]int, version string) string {
+	vv := -1
+	if v, ok := orderMap[version]; ok {
+		vv = v
+	} else {
+		panic("[preV]can not found " + version)
+	}
+
+	if vv == 0 {
+		return ""
+	}
+	return images[vv-1]
 }
