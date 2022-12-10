@@ -88,7 +88,7 @@ func SqlSimTask(config *task.TaskConfig, publicConn *connector.Connector) error 
 // SqlSim:
 //
 // 1. simplify dml: try to remove each node in original/mutated sql,
-// simplify if the result does not change or the implication oracle can still detect the bug.
+// simplify if the implication oracle can still detect the bug.
 //
 // 2. write the simplified ddl and bug(json+log) into sqlsim.
 func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJsonPath string) error {
@@ -112,7 +112,7 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 	}
 
 	// 1. simplify dml: try to remove each node in original/mutated sql,
-	// simplify if the result does not change or the implication oracle can still detect the bug.
+	// simplify if the implication oracle can still detect the bug.
 	err = SimDML(bug, conn)
 	if err != nil {
 		return err
@@ -134,8 +134,6 @@ var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector
 	rmUnion,
 	frmHint,
 	rmOrderBy,
-	//rmBinOpTrue,
-	//rmBinOpFalse,
 	frmTimeFunc,
 	frmStrFunc,
 	frmInfoFunc,

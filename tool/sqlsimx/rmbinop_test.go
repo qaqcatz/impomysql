@@ -1,4 +1,4 @@
-package sqlsim
+package sqlsimx
 
 import (
 	"github.com/qaqcatz/impomysql/testsqls"

@@ -1,4 +1,4 @@
-package sqlsim
+package sqlsimx
 
 import (
 	"github.com/pingcap/tidb/parser"

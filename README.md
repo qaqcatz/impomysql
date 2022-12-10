@@ -507,7 +507,7 @@ For a task, you can use the following command to simplify the sql statements of 
 ./impomysql sqlsim task ./output/mysql/task-0-config.json
 ```
 
-We will try to remove each ast node in original/mutated sql statement, simplify if the result does not change or the implication oracle can still detect the bug.
+We will try to remove each ast node in original/mutated sql statement, simplify if the implication oracle can still detect the bug.
 
 After that, you will see a new folder `sqlsim` under `task-0` with some friendly sql statements.
 
