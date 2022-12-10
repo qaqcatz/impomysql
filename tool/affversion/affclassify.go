@@ -3,13 +3,16 @@ package affversion
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/qaqcatz/impomysql/task"
 	"github.com/qaqcatz/nanoshlib"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type VListPair struct{
@@ -30,6 +33,9 @@ type VListPair struct{
 //   `./impomysql affclassify dbDeployerPath dbJsonPath taskPoolConfigPath`
 //
 // We will create `affclassify.json` in taskPoolPath. It is an array of {`o1v`, bug list}.
+//
+// We will also create a directory `affclassify` in taskPoolPath.
+// For each `o1v`, we will save the first detected bug in `affclassify`
 func AffClassify(dbDeployerPath string, dbJsonPath string, config *task.TaskPoolConfig) {
 	dbDeployerAbsPath, err := filepath.Abs(dbDeployerPath)
 	if err != nil {
@@ -180,6 +186,65 @@ func AffClassify(dbDeployerPath string, dbJsonPath string, config *task.TaskPool
 	if err != nil {
 		panic("[AffClassify]write json error: " + err.Error())
 	}
+
+	// We will also create a directory `affclassify` in taskPoolPath.
+	// For each `o1v`, we will save the first detected bug in `affclassify`
+	affPackPath := path.Join(taskPoolPath, "affclassify")
+	_ = os.RemoveAll(affPackPath)
+	_ = os.Mkdir(affPackPath, 0777)
+	for o1v, bugList := range vListPairMap {
+		if v, ok := orderMap[o1v]; ok {
+			// find the first reported bug
+			var firstBug *task.BugReport = nil
+			firstBugJsonPath := ""
+			var firstBugTime time.Time
+			for _, bug := range bugList {
+				bugJsonPath := path.Join(taskPoolPath, bug)
+				bugReport, err := task.NewBugReport(bugJsonPath)
+				if err != nil {
+					panic("[AffClassify]read bug error: " + err.Error() + ": " + bugJsonPath)
+				}
+				bugTime := parseTimeStr(bugReport.ReportTime)
+				if firstBug == nil || firstBugTime.After(bugTime) {
+					firstBug = bugReport
+					firstBugJsonPath = bugJsonPath
+					firstBugTime = bugTime
+				}
+			}
+
+			sqlsimPath := path.Dir(firstBugJsonPath)
+			taskPath := path.Dir(sqlsimPath)
+			taskName := path.Base(taskPath)
+
+			if v > 9999 {
+				panic("[AffClassify]v > 9999? " + strconv.Itoa(v))
+			}
+			// mkdir affPackPath/v-o1v-taskName
+			o1v := strings.ReplaceAll(o1v, "/", "@")
+			vPath := path.Join(affPackPath, fmt.Sprintf("%04d-%s-%s", v, o1v, taskName))
+			_ = os.Mkdir(vPath, 0777)
+
+			// cp ddl
+			ddlPath := path.Join(taskPath, "output.data.sql")
+			_, errStream, err := nanoshlib.Exec("cp "+ddlPath+" "+vPath, -1)
+			if err != nil {
+				panic("[AffClassify]cp ddl error: " + errStream)
+			}
+			// cp bug json
+			_, errStream, err = nanoshlib.Exec("cp "+firstBugJsonPath+" "+vPath, -1)
+			if err != nil {
+				panic("[AffClassify]cp bug json error: " + errStream)
+			}
+			// cp bug log
+			firstBugLogPath := firstBugJsonPath[0:len(firstBugJsonPath)-5]+".log"
+			_, errStream, err = nanoshlib.Exec("cp "+firstBugLogPath+" "+vPath, -1)
+			if err != nil {
+				panic("[AffClassify]cp bug log error: " + errStream)
+			}
+		} else {
+			panic("[AffClassify]can not found " + o1v)
+		}
+	}
 }
 
 // v1 == v2: 0
@@ -219,4 +284,16 @@ func preV(images []string, orderMap map[string]int, version string) string {
 		return ""
 	}
 	return images[vv-1]
+}
+
+func parseTimeStr(timeStr string) time.Time {
+	idx := strings.Index(timeStr, " m=+")
+	if idx != -1 {
+		timeStr = timeStr[:idx]
+	}
+	t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", timeStr)
+	if err != nil {
+		panic("[parseTimeStr]parse time error: " + err.Error())
+	}
+	return t
 }

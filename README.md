@@ -710,3 +710,5 @@ So the command is:
 ```
 
 We will create `affclassify.json` in taskPoolPath. It is an array of {`o1v`, bug list}.
+
+We will also create a directory `affclassify` in taskPoolPath. For each `o1v`, we will save the first detected bug in `affclassify`
