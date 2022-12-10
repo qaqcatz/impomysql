@@ -7,43 +7,15 @@ import (
 	"github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
-	"github.com/qaqcatz/impomysql/task"
 )
 
 // rmBinOpFalse: xxx AND/OR xxx -> 0 AND/OR xxx | xxx AND/OR 0
-func rmBinOpFalse(bug *task.BugReport, conn *connector.Connector) error {
-	sql2 := []*string{
-		&(bug.OriginalSql),
-		&(bug.MutatedSql),
-	}
-	res2 := []**connector.Result{
-		&(bug.OriginalResult),
-		&(bug.MutatedResult),
-	}
-	for i := 0; i < 2; i++ {
-		tempSql, err := rmBinOpFalseAllUnit(*sql2[i], *res2[i], conn)
-		if err != nil {
-			return err
-		}
-
-		tempResult := conn.ExecSQL(tempSql)
-		if tempResult.Err == nil {
-			cmp, err := (*res2[i]).CMP(tempResult)
-			if err == nil && cmp == 0 {
-				*sql2[i] = tempSql
-				*res2[i] = tempResult
-			}
-		}
-	}
-	return nil
-}
-
-func rmBinOpFalseAllUnit(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
+func rmBinOpFalse(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
 
 	// init rmBinOpVisitor, the first goal of traversal is to get binOpExprValueNum
 	v := &rmBinOpFalseVisitor{binOpExprValueNum: 0, isChangedBinOpExprValue: false,
 		changedBinOpExprValueNum: 0, isFirstEnter: true, cursorBinOpExprValue: 0}
-	_, err := rmBinOpUnit(sql, v)
+	_, err := rmBinOpFalseUnit(sql, v)
 	if err != nil {
 		return sql, err
 	}
@@ -53,7 +25,7 @@ func rmBinOpFalseAllUnit(sql string, result *connector.Result, conn *connector.C
 	for i := 0; i < v.binOpExprValueNum; i++ {
 		v.cursorBinOpExprValue = 0
 		v.isChangedBinOpExprValue = false
-		tempSql, err := rmBinOpUnit(sql, v)
+		tempSql, err := rmBinOpFalseUnit(sql, v)
 		if err != nil {
 			return sql, err
 		}
@@ -123,14 +95,14 @@ func (v *rmBinOpFalseVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-func rmBinOpUnit(sql string, v *rmBinOpFalseVisitor) (string, error) {
+func rmBinOpFalseUnit(sql string, v *rmBinOpFalseVisitor) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmBinOp]parse error")
+		return "", errors.Wrap(err, "[rmBinOpFalseUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmBinOp]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[rmBinOpFalseUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
@@ -138,7 +110,7 @@ func rmBinOpUnit(sql string, v *rmBinOpFalseVisitor) (string, error) {
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[rmBinOp]restore error")
+		return "", errors.Wrap(err, "[rmBinOpFalseUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }

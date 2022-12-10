@@ -7,38 +7,10 @@ import (
 	"github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
-	"github.com/qaqcatz/impomysql/task"
 )
 
 // rmBinOpTrue: xxx AND/OR xxx -> 1 AND/OR xxx | xxx AND/OR 1
-func rmBinOpTrue(bug *task.BugReport, conn *connector.Connector) error {
-	sql2 := []*string{
-		&(bug.OriginalSql),
-		&(bug.MutatedSql),
-	}
-	res2 := []**connector.Result{
-		&(bug.OriginalResult),
-		&(bug.MutatedResult),
-	}
-	for i := 0; i < 2; i++ {
-		tempSql, err := rmBinOpTrueAllUnit(*sql2[i], *res2[i], conn)
-		if err != nil {
-			return err
-		}
-
-		tempResult := conn.ExecSQL(tempSql)
-		if tempResult.Err == nil {
-			cmp, err := (*res2[i]).CMP(tempResult)
-			if err == nil && cmp == 0 {
-				*sql2[i] = tempSql
-				*res2[i] = tempResult
-			}
-		}
-	}
-	return nil
-}
-
-func rmBinOpTrueAllUnit(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
+func rmBinOpTrue(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
 
 	// init rmBinOpVisitor, the first goal of traversal is to get binOpExprValueNum
 	v := &rmBinOpTrueVisitor{binOpExprValueNum: 0, isChangedBinOpExprValue: false,
@@ -127,10 +99,10 @@ func rmBinOpTrueUnit(sql string, v *rmBinOpTrueVisitor) (string, error) {
 	p := parser.New()
 	stmtNodes, _, err := p.Parse(sql, "", "")
 	if err != nil {
-		return "", errors.Wrap(err, "[rmBinOp]parse error")
+		return "", errors.Wrap(err, "[rmBinOpTrueUnit]parse error")
 	}
 	if stmtNodes == nil || len(stmtNodes) == 0 {
-		return "", errors.New("[rmBinOp]stmtNodes == nil || len(stmtNodes) == 0 ")
+		return "", errors.New("[rmBinOpTrueUnit]stmtNodes == nil || len(stmtNodes) == 0 ")
 	}
 	rootNode := &stmtNodes[0]
 
@@ -138,7 +110,7 @@ func rmBinOpTrueUnit(sql string, v *rmBinOpTrueVisitor) (string, error) {
 
 	simplifiedSql, err := restore(*rootNode)
 	if err != nil {
-		return "", errors.Wrap(err, "[rmBinOp]restore error")
+		return "", errors.Wrap(err, "[rmBinOpTrueUnit]restore error")
 	}
 	return string(simplifiedSql), nil
 }

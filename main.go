@@ -5,6 +5,7 @@ import (
 	"github.com/qaqcatz/impomysql/tool/affversion"
 	"github.com/qaqcatz/impomysql/tool/ckstable"
 	"github.com/qaqcatz/impomysql/tool/sqlsim"
+	"github.com/qaqcatz/impomysql/tool/sqlsimx"
 	"log"
 	"os"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 // or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionStatus]
 // or  affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
 // or  affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
+// or  sqlsimx inputPath outputPath host post username password dbname
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -41,8 +43,10 @@ func main() {
 		doAffDBDeployer(args)
 	case "affclassify":
 		doAffClassify(args)
+	case "sqlsimx":
+		doSqlSimX(args)
 	default:
-		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion, affdbdeployer, affclassify")
+		log.Fatal("[main]please use task, taskpool, ckstable, sqlsim, affversion, affdbdeployer, affclassify, sqlsimx")
 	}
 }
 
@@ -258,4 +262,22 @@ func doAffClassify(args []string) {
 		log.Fatal("[doAffClassify]new task pool config error: ", err)
 	}
 	affversion.AffClassify(dbDeployerPath, dbJsonPath, taskPoolConfig)
+}
+
+func doSqlSimX(args []string) {
+	// sqlsimx inputPath outputPath host post username password dbname
+	if len(args) <= 8 {
+		log.Fatal("[doSqlSimX]len(args) <= 8")
+	}
+	inputPath := args[2]
+	outputPath := args[3]
+	host := args[4]
+	post, err := strconv.Atoi(args[5])
+	if err != nil {
+		log.Fatal("[doSqlSimX]parse port error: " + err.Error())
+	}
+	username := args[6]
+	password := args[7]
+	dbname := args[8]
+	sqlsimx.SqlSimX(inputPath, outputPath, host, post, username, password, dbname)
 }

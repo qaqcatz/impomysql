@@ -17,3 +17,5 @@
 .idea
 output/
 impomysql
+input.sql
+output.sql
