@@ -6,33 +6,28 @@ import (
 	_ "github.com/pingcap/tidb/parser/test_driver"
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
+	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/task"
 )
 
 // rmOrderBy: remove ORDER BY
 func rmOrderBy(bug *task.BugReport, conn *connector.Connector) error {
-	sql2 := []*string {
-		&(bug.OriginalSql),
-		&(bug.MutatedSql),
+	sql1, err := rmOrderByUnit(bug.OriginalSql)
+	if err != nil {
+		return err
 	}
-	res2 := []**connector.Result {
-		&(bug.OriginalResult),
-		&(bug.MutatedResult),
+	sql2, err := rmOrderByUnit(bug.MutatedSql)
+	if err != nil {
+		return err
 	}
-	for i := 0; i < 2; i++ {
-		tempSql, err := rmOrderByUnit(*sql2[i])
-		if err != nil {
-			return err
-		}
-
-		tempResult := conn.ExecSQL(tempSql)
-		if tempResult.Err == nil {
-			cmp, err := (*res2[i]).CMP(tempResult)
-			if err == nil && cmp == 0 {
-				*sql2[i] = tempSql
-				*res2[i] = tempResult
-			}
-		}
+	res1 := conn.ExecSQL(sql1)
+	res2 := conn.ExecSQL(sql2)
+	check, err := oracle.Check(res1, res2, bug.IsUpper)
+	if err == nil && !check {
+		bug.OriginalSql = sql1
+		bug.OriginalResult = res1
+		bug.MutatedSql = sql2
+		bug.MutatedResult = res2
 	}
 	return nil
 }

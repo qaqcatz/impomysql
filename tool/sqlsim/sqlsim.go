@@ -128,13 +128,14 @@ func SqlSim(conn *connector.Connector, outputPath string, ddlPath string, bugJso
 }
 
 // do not adjust the order!
+// must be synchronized!
 var SimDMLFuncs = []func(report *task.BugReport, connector2 *connector.Connector) error{
 	frmWith,
 	rmUnion,
 	frmHint,
 	rmOrderBy,
-	rmBinOpTrue,
-	rmBinOpFalse,
+	//rmBinOpTrue,
+	//rmBinOpFalse,
 	frmTimeFunc,
 	frmStrFunc,
 	frmInfoFunc,
