@@ -682,7 +682,7 @@ With `dbdeployer`, you can use the following command to verify all versions from
 ```shell
 ./impomysql affdbdeployer dbDeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
 # for example
-# ./impomysql ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
+# ./impomysql affdbdeployer ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
 ```
 
 ### 4.5 affclassify
