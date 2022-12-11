@@ -19,3 +19,4 @@ output/
 impomysql
 input.sql
 output.sql
+ddl.sql

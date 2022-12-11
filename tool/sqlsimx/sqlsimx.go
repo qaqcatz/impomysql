@@ -7,8 +7,7 @@ import (
 
 // do not adjust the order!
 var SimDMLFuncs = []func(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
-	rmBinOpTrue,
-	rmBinOpFalse,
+	rmBinOp01,
 	rmFields,
 	rmCharset,
 }
