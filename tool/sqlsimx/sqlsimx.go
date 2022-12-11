@@ -9,47 +9,72 @@ import (
 var SimDMLFuncs = []func(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
 	rmBinOp01,
 	rmFields,
-	rmCharset,
 }
 
 // SqlSimX: more powerful, flexible sql simplification tool.
-// Provide your sql in input file (only support 1 sql),
-// we will try to remove each node in original/mutated sql,
-// simplify if the result does not change.
-// Then write the simplified sql to output file.
-// Note that you need to prepare the ddl yourself.
-func SqlSimX(inputPath string, outputPath string,
+//
+// You can only provide one sql statement in `inputDMLPath`!
+//   If you use `dml`, we will try to remove each node in your sql statement, simplify if the result does not change.
+//   If you use `ddl`, we will remove unused tables, columns (only consider `CREATE TABLE` and `INSERT INTO VALUES`, may error).
+// Then write the simplified sql to `outputPath`.
+func SqlSimX(opt string, inputDMLPath string, inputDDLPath string, outputPath string,
 	host string, port int, username string, password string, dbname string) {
-	// read input sql
-	data, err := ioutil.ReadFile(inputPath)
-	if err != nil {
-		panic("[SqlSimX]read input sql error: " + err.Error())
-	}
-	sql := string(data)
-
 	// create connector
 	conn, err := connector.NewConnector(host, port, username, password, dbname)
 	if err != nil {
 		panic("[SqlSimX]create connector error: " + err.Error())
 	}
 
-	// first execute the original sql
-	res := conn.ExecSQL(sql)
-	if res.Err != nil {
-		panic("[SqlSimX]exec sql error: " + res.Err.Error())
+	// read and init input ddl
+	ddls, err := connector.ExtractSqlFromPath(inputDDLPath)
+	if err != nil {
+		panic("[SqlSimX]read ddl error: " + err.Error())
+	}
+	err = conn.InitDBWithDDL(ddls)
+	if err != nil {
+		panic("[SqlSimX]init ddl error: " + err.Error())
+	}
+
+	// read input dml
+	data, err := ioutil.ReadFile(inputDMLPath)
+	if err != nil {
+		panic("[SqlSimX]read input dml error: " + err.Error())
+	}
+	dml := string(data)
+
+	// first execute the dml
+	result := conn.ExecSQL(dml)
+	if result.Err != nil {
+		panic("[SqlSimX]exec dml error: " + result.Err.Error())
 	}
 
 	// simplify
-	for _, simDMLFunc := range SimDMLFuncs {
-		sql, err = simDMLFunc(sql, res, conn)
-		if err != nil {
-			panic("[SqlSimX]sim func error: " + err.Error())
+	switch opt {
+	case "dml":
+		for _, simDMLFunc := range SimDMLFuncs {
+			dml, err = simDMLFunc(dml, result, conn)
+			if err != nil {
+				panic("[SqlSimX]sim dml error: " + err.Error())
+			}
 		}
-	}
 
-	// write to output file
-	err = ioutil.WriteFile(outputPath, []byte(sql), 0777)
-	if err != nil {
-		panic("[SqlSimX]write output sql error: " + err.Error())
+		// write to output file
+		err = ioutil.WriteFile(outputPath, []byte(dml), 0777)
+		if err != nil {
+			panic("[SqlSimX]write output dml error: " + err.Error())
+		}
+	case "ddl":
+		newDDLs, err := rmtbcol(dml, ddls)
+		if err != nil {
+			panic("[SqlSimX]sim ddl error: " + err.Error())
+		}
+
+		// write to output file
+		err = ioutil.WriteFile(outputPath, []byte(newDDLs), 0777)
+		if err != nil {
+			panic("[SqlSimX]write output ddl error: " + err.Error())
+		}
+	default:
+		panic("[SqlSimX]please use dml, ddl")
 	}
 }

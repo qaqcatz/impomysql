@@ -520,8 +520,6 @@ You can also use the following command to simplify the entire taskpool:
 ./impomysql sqlsim taskpool ./resources/taskpoolconfig.json 16
 ```
 
-At present, `sqlsim` can only do some simple simplifications, we will make it better in the future.
-
 #### example
 
 ```shell
@@ -671,7 +669,9 @@ taskId      bugJsonName                  version     status
 
 It means that some bugs cannot be reproduced on `mysql 5.7`. You can manually verify yourself.
 
-### 4.4 affdbdeployer
+### 4.4 dbdeployer
+
+#### 4.4.1 affdbdeployer
 
 In `affversion`, we need to manually deploy each version of DBMS.
 
@@ -685,21 +685,15 @@ With `dbdeployer`, you can use the following command to verify all versions from
 # ./impomysql affdbdeployer ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json 16 10001 mysql:8.0.31 ""
 ```
 
-### 4.5 affclassify
+#### 4.4.2 affclassify
 
 Classify bugs according to the versions they affect.
 
-Specifically, for each bug, 
-
-we will calculate the oldest reproducible version `o1v` 
-
-and use it for classification
-
-if the bug can not be reproduced on the previous version of `o1v` (and no error).
+Specifically, for each bug, we will calculate the oldest reproducible version `o1v`,
+if the bug can not be reproduced on the previous version of `o1v` (and no error), we will use `o1v` for classification.
 
 Make sure you have done `affversion` or `affdbdeployer`, we will query the database `affversion.db`.
-
-You also need to provide `dbdeployer`, which will tell us the order of each version
+You also need to provide `dbdeployer`, which will tell us the order of each version.
 
 So the command is:
 
@@ -709,6 +703,24 @@ So the command is:
 ./impomysql affclassify ../dbdeployer/dbdeployer ../dbdeployer/db.json ./resources/taskpoolconfig.json
 ```
 
-We will create `affclassify.json` in taskPoolPath. It is an array of {`o1v`, bug list}.
+We will create:
+* `affclassify.json` in taskPoolPath. It is an array of {`o1v`, bug list}.
+* directory `affclassify` in taskPoolPath. For each `o1v`, we will save the first detected bug in `affclassify`.
 
-We will also create a directory `affclassify` in taskPoolPath. For each `o1v`, we will save the first detected bug in `affclassify`
+### 4.5 sqlsimx
+
+`sqlsimx` is a more powerful, flexible sql simplification tool:
+
+```shell
+./impomysql sqlsimx "dml" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname
+# such as:
+# ./impomysql sqlsimx dml ./dml.sql ./ddl.sql ./output.sql 127.0.0.1 13306 root 123456 TEST
+# ./impomysql sqlsimx ddl ./dml.sql ./ddl.sql ./output.sql 127.0.0.1 13306 root 123456 TEST
+```
+
+You can only provide one sql statement in `inputDMLPath`!
+
+* If you use `dml`, we will try to remove each node in your sql statement, simplify if the result does not change. 
+* If you use `ddl`, we will remove unused tables, columns (only consider `CREATE TABLE` and `INSERT INTO VALUES`, may error).
+
+Then write the simplified sql to `outputPath`.

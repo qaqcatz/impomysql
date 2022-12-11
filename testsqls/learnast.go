@@ -40,6 +40,14 @@ func (v *learnASTVisitor) Leave(in ast.Node) (ast.Node, bool) {
 
 func PrintNode(in ast.Node) {
 	switch in.(type) {
+	case *ast.CreateTableStmt:
+		printCreateTableStmt(in.(*ast.CreateTableStmt))
+	case *ast.InsertStmt:
+		printInsertStmt(in.(*ast.InsertStmt))
+	case *ast.ColumnDef:
+		printColumnDef(in.(*ast.ColumnDef))
+	case *ast.ColumnOption:
+		printColumnOption(in.(*ast.ColumnOption))
 	case *ast.WithClause:
 		printWithClause(in.(*ast.WithClause))
 	case *ast.SetOprStmt:
@@ -91,6 +99,41 @@ func PrintNode(in ast.Node) {
 	default:
 		fmt.Print(" ", reflect.TypeOf(in))
 	}
+}
+
+func printCreateTableStmt(in *ast.CreateTableStmt) {
+	fmt.Print(" [Table] ", in.Table.Name)
+	fmt.Print(" [ReferTable] ", in.ReferTable)
+	fmt.Print(" [|Columns|] ", len(in.Cols))
+	fmt.Print(" [|Constraints|] ", len(in.Constraints))
+	fmt.Print(" [|Options|] ", len(in.Options))
+	fmt.Print(" [Partition?] ", in.Partition != nil)
+	fmt.Print(" [Select] ", in.Select)
+}
+
+func printColumnDef(in *ast.ColumnDef) {
+	fmt.Print(" [Name] ", in.Name)
+	fmt.Print(" [Tp] ", in.Tp)
+	fmt.Print(" [|Options|] ", len(in.Options))
+}
+
+func printColumnOption(in *ast.ColumnOption) {
+	fmt.Print(" [Tp] ", in.Tp)
+	fmt.Print(" [ConstraintName] ", in.ConstraintName)
+	fmt.Print(" [Expr] ", in.Expr)
+	fmt.Print(" [PrimaryKeyTp] ", in.PrimaryKeyTp)
+	fmt.Print(" [StrValue] ", in.StrValue)
+}
+
+func printInsertStmt(in *ast.InsertStmt) {
+	fmt.Print(" [Table] ", in.Table)
+	fmt.Print(" [|Lists|] ", len(in.Lists))
+	fmt.Print(" [|Columns|] ", len(in.Columns))
+	fmt.Print(" [|Setlist|] ", len(in.Setlist))
+	fmt.Print(" [Select] ", in.Select)
+	fmt.Print(" [|TableHints|] ", len(in.TableHints))
+	fmt.Print(" [|OnDuplicate|] ", len(in.OnDuplicate))
+	fmt.Print(" [|PartitionNames|] ", len(in.PartitionNames))
 }
 
 func printWithClause(in *ast.WithClause) {

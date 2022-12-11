@@ -22,7 +22,7 @@ import (
 // or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionStatus]
 // or  affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
 // or  affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
-// or  sqlsimx inputPath outputPath host post username password dbname
+// or  sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -265,19 +265,21 @@ func doAffClassify(args []string) {
 }
 
 func doSqlSimX(args []string) {
-	// sqlsimx inputPath outputPath host post username password dbname
-	if len(args) <= 8 {
-		log.Fatal("[doSqlSimX]len(args) <= 8")
+	// sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname
+	if len(args) <= 10 {
+		log.Fatal("[doSqlSimX]len(args) <= 10")
 	}
-	inputPath := args[2]
-	outputPath := args[3]
-	host := args[4]
-	post, err := strconv.Atoi(args[5])
+	opt := args[2]
+	inputDMLPath := args[3]
+	inputDDLPath := args[4]
+	outputPath := args[5]
+	host := args[6]
+	post, err := strconv.Atoi(args[7])
 	if err != nil {
 		log.Fatal("[doSqlSimX]parse port error: " + err.Error())
 	}
-	username := args[6]
-	password := args[7]
-	dbname := args[8]
-	sqlsimx.SqlSimX(inputPath, outputPath, host, post, username, password, dbname)
+	username := args[8]
+	password := args[9]
+	dbname := args[10]
+	sqlsimx.SqlSimX(opt, inputDMLPath, inputDDLPath, outputPath, host, post, username, password, dbname)
 }

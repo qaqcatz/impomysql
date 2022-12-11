@@ -17,6 +17,6 @@
 .idea
 output/
 impomysql
-input.sql
-output.sql
+dml.sql
 ddl.sql
+output.sql
