@@ -22,7 +22,7 @@ import (
 // or  affversion taskpool taskPoolConfigPath threadNum port version [whereVersionStatus]
 // or  affdbdeployer dbdeployerPath dbJsonPath taskPoolConfigPath threadNum port newestImage oldestImage
 // or  affclassify dbDeployerPath dbJsonPath taskPoolConfigPath
-// or  sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname
+// or  sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname [dmlfunc]
 func main() {
 	args := os.Args
 	if len(args) <= 1 {
@@ -265,7 +265,7 @@ func doAffClassify(args []string) {
 }
 
 func doSqlSimX(args []string) {
-	// sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname
+	// sqlsimx "sql" | "ddl" inputDMLPath inputDDLPath outputPath host post username password dbname [dmlfunc]
 	if len(args) <= 10 {
 		log.Fatal("[doSqlSimX]len(args) <= 10")
 	}
@@ -281,5 +281,9 @@ func doSqlSimX(args []string) {
 	username := args[8]
 	password := args[9]
 	dbname := args[10]
-	sqlsimx.SqlSimX(opt, inputDMLPath, inputDDLPath, outputPath, host, post, username, password, dbname)
+	dmlFunc := ""
+	if len(args) > 11 {
+		dmlFunc = args[11]
+	}
+	sqlsimx.SqlSimX(opt, inputDMLPath, inputDDLPath, outputPath, host, post, username, password, dbname, dmlFunc)
 }

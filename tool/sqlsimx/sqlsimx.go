@@ -18,7 +18,7 @@ var SimDMLFuncs = []func(sql string, result *connector.Result, conn *connector.C
 //   If you use `ddl`, we will remove unused tables, columns (only consider `CREATE TABLE` and `INSERT INTO VALUES`, may error).
 // Then write the simplified sql to `outputPath`.
 func SqlSimX(opt string, inputDMLPath string, inputDDLPath string, outputPath string,
-	host string, port int, username string, password string, dbname string) {
+	host string, port int, username string, password string, dbname string, specDmlFunc string) {
 	// create connector
 	conn, err := connector.NewConnector(host, port, username, password, dbname)
 	if err != nil {
@@ -52,6 +52,9 @@ func SqlSimX(opt string, inputDMLPath string, inputDDLPath string, outputPath st
 	switch opt {
 	case "dml":
 		for _, simDMLFunc := range SimDMLFuncs {
+			if specDmlFunc != "" && getFunctionName(simDMLFunc) != specDmlFunc {
+				continue
+			}
 			dml, err = simDMLFunc(dml, result, conn)
 			if err != nil {
 				panic("[SqlSimX]sim dml error: " + err.Error())

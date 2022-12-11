@@ -8,6 +8,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/pingcap/tidb/parser/format"
 	"os"
+	"reflect"
+	"runtime"
+	"strings"
 )
 
 func pathExists(path string) (bool, error) {
@@ -48,4 +51,9 @@ func restore(rootNode ast.Node) ([]byte, error) {
 		return nil, errors.Wrap(err, "restore error")
 	}
 	return buf.Bytes(), nil
+}
+
+func getFunctionName(temp interface{}) string {
+	strs := strings.Split((runtime.FuncForPC(reflect.ValueOf(temp).Pointer()).Name()), ".")
+	return strs[len(strs)-1]
 }
