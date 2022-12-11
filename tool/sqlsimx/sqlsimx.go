@@ -9,6 +9,7 @@ import (
 var SimDMLFuncs = []func(sql string, result *connector.Result, conn *connector.Connector) (string, error) {
 	rmBinOpTrue,
 	rmBinOpFalse,
+	rmFields,
 	rmCharset,
 }
 
