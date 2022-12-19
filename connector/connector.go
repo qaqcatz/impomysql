@@ -164,7 +164,7 @@ func (conn *Connector) InitDBWithDDL(ddlSqls []*EachSql) error {
 	for _, ddlSql := range ddlSqls {
 		result := conn.ExecSQL(ddlSql.Sql)
 		if result.Err != nil {
-			return err
+			return result.Err
 		}
 	}
 	return nil
