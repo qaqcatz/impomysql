@@ -252,6 +252,7 @@ func doVerify(bugJsonPath string, taskId int, bugJsonName string,
 		version+`', `+
 		strconv.Itoa(status)+`);`)
 	if err != nil {
+		affVersionLock.Unlock()
 		return errors.Wrap(err, "[doVerify]insert bug error")
 	}
 
