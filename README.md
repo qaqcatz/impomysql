@@ -55,15 +55,13 @@ In theory, the predicate of sql1 → the predicate of sql2, and the result of sq
 
 If the actual result does not satisfy this relationship, we consider that there is a logical bug.
 
-Although the idea is simple, some features make it difficult to implement, such as aggregate functions, window functions, type conversion, LIMIT, LEFT/RIGHT JOIN, flow control operations, etc.
-
-We will discuss these features in our paper:
+You can see our paper for more details:
 
 ```
 todo  
 ```
 
-You can also see the source code for more details:
+You can also see the source code:
 
 * mutation/doc.go
 
