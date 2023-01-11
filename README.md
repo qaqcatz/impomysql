@@ -6,6 +6,8 @@ Detecting Logic Bugs in mysql through Implication Oracle.
 
 Also supports DBMS compatible with mysql syntax, such as mariadb, tidb, oceanbase.
 
+<font color="red">Note that 'impomysql' is our original name, now you can also call it PINOLO. We may create a new repository in the future. </font>
+
 ## 1. What is logical bug
 
 see this bug report as an example:
@@ -591,6 +593,7 @@ SELECT bugJsonName FROM `affversion` WHERE `taskId`=taskId AND `version`=version
   WHERE `taskId` = taskId AND `version` = version AND `status` = status
   ```
   
+
 According to the reproduction status of the bug, we will insert a new record to `affversion`:
 
 ```sqlite
