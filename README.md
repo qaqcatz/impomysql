@@ -84,7 +84,7 @@ You can also see the source code:
 
 ### 3.1 build
 
-It is recommended to use `golang 1.16.2`.
+It is recommended to use `golang 1.16.2` ([how to install golang 1.16.2](https://github.com/qaqcatz/impomysql/blob/main/documents/installgo.md)).
 
 ```shell
 git clone --depth=1 https://github.com/qaqcatz/impomysql.git
