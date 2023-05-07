@@ -49,7 +49,14 @@ mysql> SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAV
 
 ## 2. What is Implication Oracle
 
-In the above example, we changed `HAVING f1 != 0`  to `HAVING 1`.
+In the above example:
+
+```sql
+SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING f1 != 0; -- sql1
+SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING 1; -- sql2
+```
+
+we changed `HAVING f1 != 0`  to `HAVING 1`.
 
 In theory, the predicate of sql1 → the predicate of sql2, and the result of sql1 ⊆ the result of sql2. 
 
