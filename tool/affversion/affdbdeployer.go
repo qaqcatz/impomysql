@@ -96,6 +96,8 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 	// new -> old,
 	// dbdeployer -cfg dbJsonPath run dbms image portStr
 	// affversion taskpool taskpoolConfig threadNum image preImage@1
+	deployErrSkip := make([]int, 0)
+	AffErrSkip := make([]int, 0)
 	logger.Info("Start!")
 	logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	for i := len(images)-1; i >= 0; i -= 1 {
@@ -106,15 +108,29 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 		logger.Info("dbdeployer:")
 		err := nanoshlib.ExecStd(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " run " + config.DBMS + " " + image + " " +portStr, -1)
 		if err != nil {
-			panic("[AffDBDeployer]dbdeployer run " + config.DBMS + " " + image + " " + portStr + " error")
+			logger.Warn("[AffDBDeployer]dbdeployer run " + config.DBMS + " " + image + " " + portStr + " error")
+			deployErrSkip = append(deployErrSkip, i)
+			continue
 		}
 		logger.Info("**************************************************")
 		logger.Info("affversionpool:")
 		err = AffVersionTaskPool(config, threadNum, port, image, "")
 		if err != nil {
-			panic(fmt.Sprintf("[AffDBDeployer]aff version task pool error: %+v", err))
+			logger.Warnf("[AffDBDeployer]aff version task pool error: %+v", err)
+			AffErrSkip = append(AffErrSkip, i)
+			continue
 		}
 	}
+	logger.Info("[deployErrSkip]")
+	for _, skip := range deployErrSkip {
+		fmt.Print(strconv.Itoa(skip) + " ")
+	}
+	fmt.Println()
+	logger.Info("[AffErrSkip]")
+	for _, skip := range AffErrSkip {
+		fmt.Print(strconv.Itoa(skip) + " ")
+	}
+	fmt.Println()
 
 	logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	logger.Info("Finished!")
