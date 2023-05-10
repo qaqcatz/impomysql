@@ -6,11 +6,11 @@ Detecting Logic Bugs in mysql through Implication Oracle.
 
 Also supports DBMS compatible with mysql syntax, such as mariadb, tidb, oceanbase.
 
-<font color="red">Note that 'impomysql' is our original name, now you can also call it PINOLO. We may create a new repository in the future. </font>
+**Note that 'impomysql' is our original name, now you can also call it PINOLO. We may create a new repository in the future.** 
 
 ## 1. What is logical bug
 
-see this bug report as an example:
+See this bug report as an example:
 
 https://bugs.mysql.com/bug.php?id=108937
 
@@ -56,7 +56,7 @@ SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING f1 
 SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING 1; -- sql2
 ```
 
-we changed `HAVING f1 != 0`  to `HAVING 1`.
+We changed `HAVING f1 != 0`  to `HAVING 1`.
 
 In theory, the predicate of sql1 → the predicate of sql2, and the result of sql1 ⊆ the result of sql2. 
 
@@ -92,7 +92,7 @@ cd impomysql
 go build
 ```
 
-<font color="red">In the following we will refer to the path of `impomysql` as `${IMPOHOME}`</font>
+**In the following we will refer to the path of `impomysql` as `${IMPOHOME}`**
 
 Now you will see an executable file `${IMPOHOME}/impomysql`.
 
@@ -108,7 +108,7 @@ You can also compile and install the DBMS yourself.
 
 ### 3.3 run task
 
-We treat DBMS testing as `task`.
+We consider a DBMS test as a `task`.
 
 #### quick start
 
@@ -119,9 +119,28 @@ cd ${IMPOHOME}
 ./impomysql task ./resources/taskconfig.json
 ```
 
+If everything is ok, there will be nothing in the terminal, and you will get a new directory `${IMPOHOME}/output/mysql/task-1`, whose structure is as follows:
+
+```shell
+${IMPOHOME}/output/mysql/task-1
+  |-- bugs
+     |-- bug-0-0-FixMHaving1U.log
+     |-- bug-0-0-FixMHaving1U.json
+  |-- result.json
+  |-- task.log
+```
+
+You will see a directory named `bugs` in `${IMPOHOME}/output/mysql/task-1`, and two files named `bug-0-0-FixMHaving1U.log` and `bug-0-0-FixMHaving1U.json` respectively in `bugs`. This is the logical bugs we detected. You can take a look at these files yourself first, and we will explain the details of input and output in the following text.
+
 #### input
 
-You need to provide a configuration file. see `${IMPOHOME}/resources/raskconfig.json`:
+Command:
+
+```shell
+impomysql task <task configuration json file>
+```
+
+You only need to provide a configuration file. We will take `${IMPOHOME}/resources/raskconfig.json` as an example:
 
 ```json
 {
@@ -139,119 +158,22 @@ You need to provide a configuration file. see `${IMPOHOME}/resources/raskconfig.
 }
 ```
 
-* `outputPath`, `dbms`, `taskId`: we will save the result in `outputPath`/`dbms`/task-`taskId`. `taskId` >= 0.
-
-* `host`, `port`, `username`, `password`, `dbname`: we will create a database connector with dsn `username`:`password`@tcp(`host`:`port`)/`dbname`, and init database `dbname`.
-
-* `seed`: random seed. If seed <= 0, we will use the current time.
-
-* `ddlPath`: sql file responsible for creating data. see `${IMPOHOME}/resources/ddl.sql`:
-  
-  ```sql
-  create table t (c1 double);
-  insert into t values (79.1819),(12.991),(1);
-  ```
-  
-  We will init database according to `ddlPath`.
-
-* `dmlPath`: sql file responsible for querying data. see `${IMPOHOME}/resources/dml.sql`:
-  
-  ```sql
-  SELECT c1-DATE_SUB('2008-05-25', INTERVAL 1 HOUR_MINUTE) AS f1 FROM t HAVING f1 != 0;
-  SELECT 1;
-  SELECT 'abc';
-  ```
-  
-  For each sql statement in `dmlPath`, we will do some mutations according to Implication Oracle to detect logical bugs.
-
-Note that:
-
-* the paths in `taskconfig.json` are relative to `${IMPOHOME}`(for example, `./output` is actually `${IMPOHOME}/output`). You can also use absolute paths. Actually, we will automatically convert these paths to absolute paths before executing the `task`.
-* we only focus on  `SELECT` statements in your `dmlPath`, which means we will ignore some of your sqls such as EXPLAIN, PREPARE.
-* It is recommended not to use sql with side effects, such as assign operations, SELECT INTO.
+| option                                           | description                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `outputPath`, `dbms`, `taskId`                   | We will save the result in `outputPath`/`dbms`/task-`taskId` (`taskId` >= 0). <br>We will remove the old directory and create a new directory. <br>If you want to provide a relative path, remember that the path is relative to the directory where you ran the command, not the path of this configuration file. |
+| `host`, `port`, `username`, `password`, `dbname` | We will create a database connector with dsn `username`:`password`@tcp(`host`:`port`)/`dbname`, <br>and init database `dbname`. |
+| `seed`                                           | Random seed. If seed <= 0, we will use the current time.     |
+| `ddlPath`                                        | Sql file responsible for creating data. <br>See `${IMPOHOME}/resources/ddl.sql` as an example. |
+| `dmlPath`                                        | Sql file responsible for querying data. <br>We only focus on `SELECT` statements in your `dmlPath`, which means we will ignore some of your sqls such as `EXPLAIN`, `PREPARE` ... <br>See `${IMPOHOME}/resources/dml.sql` as an example. |
 
 #### output
 
-You will see a new directory `${IMPOHOME}/output/mysql/task-1`. 
-
->  Actually we will remove the old directory and create a new directory.
-
-There is a directory named `bugs` in `${IMPOHOME}/output/mysql/task-1`, and two files named `bug-0-0-FixMHaving1U.log` and `bug-0-0-FixMHaving1U.json` respectively in `bugs`.
-
-We will save logical bugs in `bugs`. For each bug, we will create two files: bug-`bugId`-`sqlId`-`mutationName`.log and bug-`bugId`-`sqlId`-`mutationName`.json. `bugId` is the bug number(start from 0) during this task, `sqlId` is the original sql number(start from 0) in `dmlPath`, `mutationName` is the name of mutation.
-
-* bug-`bugId`-`sqlId`-`mutationName`.log: save the mutation name, original sql, original result, mutated sql, mutated result, and the relationship between the original result and the mutated result we expect. For example:
-  
-  ```sql
-  **************************************************
-  [MutationName] FixMHaving1U
-  **************************************************
-  [IsUpper] true
-  **************************************************
-  [OriginalResult]
-  ColumnName(ColumnType)s:  f1(DOUBLE)
-  row 0: -1928.8181
-  row 1: -1995.009
-  row 2: -2007
-  2.422742ms
-  **************************************************
-  [MutatedResult]
-  ColumnName(ColumnType)s:  f1(DOUBLE)
-  row 0: -20080524235820.816
-  row 1: -20080524235887.008
-  row 2: -20080524235899
-  1.250519ms
-  **************************************************
-  
-  -- OriginalSql
-  SELECT `c1`-DATE_SUB(_UTF8MB4'2008-05-25', INTERVAL 1 HOUR_MINUTE) AS `f1` FROM `t` HAVING `f1`!=0;
-  -- MutatedSql
-  SELECT `c1`-DATE_SUB(_UTF8MB4'2008-05-25', INTERVAL 1 HOUR_MINUTE) AS `f1` FROM `t` HAVING 1;
-  ```
-  
-  `[IsUpper] true` means that the mutated result  should ⊆ the original result. It is clear that the actual execution result violates this relationship.
-  
-  >  `[IsUpper] false` means that the original result should ⊆ the mutated result.
-
-* bug-`bugId`-`sqlId`-`mutationName`.json: json format of bug-`bugId`-`sqlId`-`mutationName` .log exclude execution result. For example:
-  
-  ```json
-  {
-    "reportTime": "2022-11-13 23:26:33.51294115 +0800 CST m=+0.200207850",
-    "bugId": 0,
-    "sqlId": 0,
-    "mutationName": "FixMHaving1U",
-    "isUpper": true,
-    "originalSql": "SELECT `c1`-DATE_SUB(_UTF8MB4'2008-05-25', INTERVAL 1 HOUR_MINUTE) AS `f1` FROM `t` HAVING `f1`!=0",
-    "mutatedSql": "SELECT `c1`-DATE_SUB(_UTF8MB4'2008-05-25', INTERVAL 1 HOUR_MINUTE) AS `f1` FROM `t` HAVING 1"
-  }
-  ```
-
-Additionally, there are two files in `${IMPOHOME}/output/mysql/task-1`:
-
-* `task.log`: task log file, from which you can get task progress, task error during execution, and logic bugs.
-
-* `result.json`: If the task executes successfully, you will get `result.json` like:
-  
-  ```json
-  {
-    "startTime": "2022-11-18 19:15:29.437554842 +0800 CST m=+0.001609271",
-    "ddlSqlsNum": 2,
-    "dmlSqlsNum": 3,
-    "endInitTime": "2022-11-18 19:15:29.476101614 +0800 CST m=+0.040156084",
-    "stage1ErrNum": 0,
-    "stage1ExecErrNum": 0,
-    "stage2ErrNum": 0,
-    "stage2UnitNum": 5,
-    "stage2UnitErrNum": 0,
-    "stage2UnitExecErrNum": 0,
-    "impoBugsNum": 1,
-    "saveBugErrNum": 0,
-    "endTime": "2022-11-18 19:15:29.478823678 +0800 CST m=+0.042878143"
-  }
-  ```
-  
-   This file is used for debugging, from which you can get the task's start time(`startTime`), end time(`endTime`), and the number of logical bugs we detected(`impoBugsNum`).
+| file                                    | description                                                  |
+| --------------------------------------- | ------------------------------------------------------------ |
+| bug-`bugId`-`sqlId`-`mutationName`.log  | Save the mutation name, original sql, original result, mutated sql, mutated result, and the relationship(`IsUpper`) between the original result and the mutated result we expect. `[IsUpper] true` means that the mutated result  should ⊆ the original result. |
+| bug-`bugId`-`sqlId`-`mutationName`.json | Json format of bug-`bugId`-`sqlId`-`mutationName`.log        |
+| `task.log`                              | Task log file, from which you can get task progress and error message. |
+| `result.json`                           | If a task executes successfully, we will create a result file, from which you can get the task's start time(`startTime`), end time(`endTime`), and the number of logical bugs we detected(`impoBugsNum`).<br>The remaining fields are used for our debugging, just ignore them! |
 
 ### 3.4 run task with go-randgen
 
@@ -263,6 +185,7 @@ A `task` can automatically generate `ddlPath` and `dmlPath` with the help of [go
 git clone https://github.com/pingcap/go-randgen.git
 cd go-randgen
 go get -u github.com/jteeuwen/go-bindata/...
+# make sure you have added GOPATH/bin to your environment variable PATH
 make all
 ```
 
@@ -277,9 +200,24 @@ cd ${IMPOHOME}
 ./impomysql task ./resources/taskrdgenconfig.json
 ```
 
+If everything is ok, there will be nothing in the terminal, and you will get a new directory `${IMPOHOME}/output/mysql/task-1`, whose structure is as follows:
+
+```shell
+${IMPOHOME}/output/mysql/task-1
+  |-- bugs
+     |-- bug-0-0-FixMHaving1U.log
+     |-- bug-0-0-FixMHaving1U.json
+  |-- result.json
+  |-- task.log
+  |-- output.data.sql
+  |-- output.rand.sql
+```
+
+Except for the standard output of a task (i.e., bugs, task.log, result.json), you will also see two sql files `output.data.sql`, `output.rand.sql`, which are the `ddlPath` and `dmlPath` automatically generated by `go-randgen`.
+
 #### input
 
-Next, modify the configuration of `task`. see  `${IMPOHOME}/resources/taskrdgenconfig.json`:
+Take `${IMPOHOME}/resources/taskrdgenconfig.json` as an example. We removed `ddlPath` and `dmlPath`, added `randGenPath`, `zzPath`, `yyPath`, `queriesNum`, `needDML`:
 
 ```json
 {
@@ -300,33 +238,18 @@ Next, modify the configuration of `task`. see  `${IMPOHOME}/resources/taskrdgenc
 }
 ```
 
-We removed `ddlPath` and `dmlPath`, added `randGenPath`, `zzPath`, `yyPath`, `queriesNum`, `needDML`:
+| option             | description                                                  |
+| ------------------ | ------------------------------------------------------------ |
+| `randGenPath`      | The path of your go-randgen executable file                  |
+| `zzPath`, `yyPath` | `go-randgen`  will generate a ddl sql file `output.data.sql` according to `zzPath`, and generate a dml sql file  `output.rand.sql` according to `yyPath`. <br>We have provided a default zz file `impo.zz.lua` and a default yy file `impo.yy` in `${IMPOHOME}/resources`. It is recommended to use these default files. <br>We actually execute the following command: `cd outputPath/dbms/task-taskId && randGenPath gentest -Z zzPath -Y yyPath -Q queriesNum --seed seed -B` |
+| `queriesNum`       | The number of sqls in `output.rand.sql`.                     |
+| `needDML`          | if `needDML` is false, we will delete `output.rand.sql` at the end of `task` .  It is recommended to set this value to false, because the size of `output.rand.sql` is usually very large(about 10MB with 10000 sqls). |
 
-* `randGenPath`: the path of your go-randgen executable file.
-
-* `zzPath`, `yyPath`: `go-randgen`  will generate a ddl sql file `output.data.sql` according to `zzPath`, and generate a dml sql file  `output.rand.sql` according to `yyPath`. 
-  
-  We have provided a default zz file `impo.zz.lua` and a default yy file `impo.yy` in `${IMPOHOME}/resources`. It is recommended to use these default files.
-
-* `queriesNum`: the number of sqls in `output.rand.sql`.
-
-* `needDML`: if `needDML` is false, we will delete `output.rand.sql` at the end of `task` .  It is recommended to set this value to false, because the size of `output.rand.sql` is usually very large(about 10MB with 10000 sqls).
-
-Note that:
-
-* Similarly, the paths in `taskrdgenconfig.json` are relative to `${IMPOHOME}`. You can also use absolute paths. Actually, we will automatically convert these paths to absolute paths before executing the `task`.
-
-* For go-randgen, we actually execute the following command:
-  
-  ```shell
-  cd outputPath/dbms/task-taskId && randGenPath gentest -Z zzPath -Y yyPath -Q queriesNum --seed seed -B
-  ```
-
-* If you used both (non empty) `rdGenPath` and `ddlPath`, `dmlPath`, we will run `task` with `go-randgen`, and set `ddlPath` to  `outputPath/dbms/task-taskId/output.data.sql`, set `dmlPath` to `outputPath/dbms/task-taskId/output.rand.sql`.
+Note that If you used both (non empty) `rdGenPath` and `ddlPath`, `dmlPath`, we will run `task` with `go-randgen`, and set `ddlPath` to  `outputPath/dbms/task-taskId/output.data.sql`, set `dmlPath` to `outputPath/dbms/task-taskId/output.rand.sql`.
 
 #### output
 
-In addition to `bugs`, `task.log`, `result.json`, you will also see `output.data.sql`, `output.rand.sql`.
+Except for `bugs`, `task.log`, `result.json`, you will also see `output.data.sql`, `output.rand.sql`.
 
 Of course, if you set `needDML` to false, we will delete `output.rand.sql`.
 
@@ -341,11 +264,46 @@ We assume you have executed `sudo docker run -itd --name mysqltest -p 13306:3306
 ```shell
 cd ${IMPOHOME}
 ./impomysql taskpool ./resources/taskpoolconfig.json
+#output:
+#time="2023-05-10T15:05:47+08:00" level=info msg="Running **************************************************"
+#time="2023-05-10T15:05:47+08:00" level=info msg="Run task0"
+#time="2023-05-10T15:05:47+08:00" level=info msg="Run task1"
+#time="2023-05-10T15:05:47+08:00" level=info msg="Run task2"
+#time="2023-05-10T15:05:47+08:00" level=info msg="Run task3"
+#time="2023-05-10T15:05:49+08:00" level=info msg="task-0 detected a logical bug!!! bugId = 0 sqlId = 21 mutationName = FixMHaving1U"
+#time="2023-05-10T15:05:51+08:00" level=info msg="task1 Finished"
+#time="2023-05-10T15:05:51+08:00" level=info msg="Run task4"
+...
+#time="2023-05-10T15:06:02+08:00" level=info msg="task15 Finished"
+#time="2023-05-10T15:06:02+08:00" level=info msg="max tasks!"
+#time="2023-05-10T15:06:02+08:00" level=info msg="Finished **************************************************"
 ```
+
+If everything is ok, you will get a new directory `${IMPOHOME}/output/mysql`, whose structure is as follows:
+
+```shell
+${IMPOHOME}/output/mysql/task-1
+  |-- result.json
+  |-- taskpool.log
+  |-- task-0
+     |-- bugs
+        |-- bug-0-0-FixMHaving1U.log
+        |-- bug-0-0-FixMHaving1U.json
+     |-- result.json
+     |-- task.log
+     |-- output.data.sql
+  |-- task-0-config.json
+  |-- task-1
+     |-- ...
+  |-- task-1-config.json
+  |-- ...
+```
+
+`taskpool` will generate a series of task configurations and run the corresponding tasks based on these configurations. We will explain the details of input and output in the following text.
 
 #### input
 
-See `${IMPOHOME}/resources/taskpoolconfig.json`:
+Take `${IMPOHOME}/resources/taskpoolconfig.json` as an example:
 
 ```json
 {
@@ -367,47 +325,26 @@ See `${IMPOHOME}/resources/taskpoolconfig.json`:
 }
 ```
 
-* `outputPath`,`dbms`,`host`,`port`,`username`,`password`,`randGenPath`,`zzPath`,`yyPath`,`queriesNum`: same as `task`
-* `threadNum`: the number of threads(coroutines). 
-* `maxTasks`:  maximum number of tasks, <= 0 means no limit.
-* `maxTimeS`: maximum time(second), <=0 means no limit.
-* `dbPrefix`: for each thread we will create a database connector, the dbname of each connector is `dbPrefix`+thread id.
-* `seed`: the seed of each task is `seed`+task id.
+| option      | description                                                  |
+| ----------- | ------------------------------------------------------------ |
+| `threadNum` | The number of threads                                        |
+| `maxTasks`  | Maximum number of tasks, <= 0 means no limit.                |
+| `maxTimeS`  | Maximum time(second), <=0 means no limit.                    |
+| `dbPrefix`  | For each thread we will create a database connector, the dbname of each connector is `dbPrefix`+thread id. |
+| `seed`      | The seed of each task is `seed`+task id.                     |
 
 Note that:
 
-* `taskpool` will continuously run tasks with go-randgen in parallel, and we will set `needDML` to false.
+* We will set `needDML` to false.
 * It is recommended to set `queriesNum` to a large value(>=10000, a task with `queriesNum`=10000 will take about 5~10 minutes), otherwise you will get a lot of task directories.
-* We will stop all tasks if the database crashes.
 
 #### output
 
-In `${IMPOHOME}/output/mysql`, you will not only see the task directories, but also:
-
-* task-`taskId`-config.json: the configuration file of task-`taskId`.
-
-* `taskpool.log`:  taskpool log file, from which you can get taskpool progress, task error during execution, and logic bugs.
-
-* `result.json`:  If the taskpool executes successfully, you will get `result.json` like:
-  
-  ```json
-  {
-    "startTime": "2022-11-18 19:33:20.290851516 +0800 CST m=+0.001550968",
-    "totalTaskNum": 19,
-    "finishedTaskNum": 16,
-    "errorTaskNum": 0,
-    "errorTaskIds": [],
-    "bugsNum": 4,
-    "bugTaskIds": [
-      0,
-      6,
-      11
-    ],
-    "endTime": "2022-11-18 19:33:28.446037916 +0800 CST m=+8.156737393"
-  }
-  ```
-  
-  This file is used for debugging, from which you can get the taskpool's start time(`startTime`), end time(`endTime`), the number of logical bugs we detected(`bugsNum`) and their taskId(`bugTaskIds`).
+| option                    | description                                                  |
+| ------------------------- | ------------------------------------------------------------ |
+| task-`taskId`-config.json | The configuration file of task-`taskId`.                     |
+| `taskpool.log`            | Taskpool log file, from which you can get taskpool progress and error message. |
+| `result.json`             | If the taskpool executes successfully, we will create a result file, from which you can get the taskpool's start time(`startTime`), end time(`endTime`), the number of logical bugs we detected(`bugsNum`) and their taskId(`bugTaskIds`).<br>The remaining fields are used for our debugging, just ignore them! |
 
 #### test dbms
 
@@ -461,7 +398,7 @@ We provide default configuration files for mysql, mariadb, tidb, oceanbase, you 
 
 ### 4.1 ckstable
 
->  We assume that you have finished the **quick start** in **3.5 run task pool**.
+We assume that you have finished the **quick start** in **3.5 run task pool**.
 
 #### intro
 
@@ -502,7 +439,7 @@ The directory `unstable` is empty, means that all bugs under `task0` are stable 
 
 ### 4.2 sqlsim
 
-> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable**.
+We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable**.
 
 #### intro
 
@@ -547,7 +484,7 @@ SELECT (0^`f5`&ADDTIME('2017-06-19 02:05:51', '18:20:54')) AS `f1`,(`f5`+`f6`>>T
 
 ### 4.3 affversion
 
-> We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable** and **4.2 sqlsim**
+We assume that you have finished the **quick start** in **3.5 run task pool** and **4.1 ckstable** and **4.2 sqlsim**
 
 #### intro
 
