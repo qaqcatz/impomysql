@@ -64,8 +64,14 @@ If the actual result does not satisfy this relationship, we consider that there 
 
 You can see our paper for more details:
 
-```
-todo  
+```shell
+@inproceedings{hao2023pinolo,
+  title={Pinolo: Detecting Logical Bugs in Database Management Systems with Approximate Query Synthesis},
+  author={Hao, Zongyin and Huang, Quanfeng and Wang, Chengpeng and Wang, Jianfeng and Zhang, Yushan and Wu, Rongxin and Zhang, Charles},
+  booktitle={2023 USENIX Annual Technical Conference (USENIX ATC 23)},
+  pages={345--358},
+  year={2023}
+}
 ```
 
 You can also see the source code:
