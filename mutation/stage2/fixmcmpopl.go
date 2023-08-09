@@ -24,6 +24,8 @@ func (v *MutateVisitor) addFixMCmpOpL(in ast.Node, flag int) {
 	switch *myOp {
 	case opcode.LE:
 	case opcode.GE:
+	case opcode.NE:
+		break
 	default:
 		return
 	}
@@ -54,6 +56,8 @@ func doFixMCmpOpL(rootNode ast.Node, in ast.Node) ([]byte, error) {
 		newOp = opcode.LT
 	case opcode.GE:
 		newOp = opcode.GT
+	case opcode.NE:
+		newOp = opcode.LT
 	default:
 		return nil, errors.New("[doFixMCmpOpL]Op default " + oldOp.String())
 	}

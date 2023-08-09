@@ -25,6 +25,7 @@ func (v *MutateVisitor) addFixMCmpOpU(in ast.Node, flag int) {
 	case opcode.EQ:
 	case opcode.LT:
 	case opcode.GT:
+		break
 	default:
 		return
 	}
