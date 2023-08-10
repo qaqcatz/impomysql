@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-// addFixMCmpOpL: FixMCmpOpL, *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr: a {>=|<=} b -> a {>|<} b
+// addFixMCmpOpL: FixMCmpOpL, *ast.BinaryOperationExpr, *ast.CompareSubqueryExpr: a {>=|<=|!=} b -> a {>|<} b
 func (v *MutateVisitor) addFixMCmpOpL(in ast.Node, flag int) {
 	var myOp *opcode.Op = nil
 	switch in.(type) {
@@ -25,7 +25,6 @@ func (v *MutateVisitor) addFixMCmpOpL(in ast.Node, flag int) {
 	case opcode.LE:
 	case opcode.GE:
 	case opcode.NE:
-		break
 	default:
 		return
 	}
