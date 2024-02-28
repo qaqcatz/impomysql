@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -143,10 +142,10 @@ func PrepareAndRunAffVersionTask(logger *logrus.Logger, taskConfigJsonPath strin
 }
 
 func monitorFds() ([]string, error) {
-	outStream, errStream, err := nanoshlib.Exec(fmt.Sprintf("ls -l /proc/%v/fd", os.Getpid()), -1)
+	out, err := execCmd(fmt.Sprintf("ls -l /proc/%v/fd", os.Getpid()))
 	if err != nil {
-		return nil, errors.New("[monitorFd]count fd error: " + err.Error() + ": " + errStream)
+		return nil, errors.New("[monitorFd]count fd error: " + err.Error() + ": " + out)
 	}
-	lines := strings.Split(strings.TrimSpace(string(outStream)), "\n")
+	lines := strings.Split(strings.TrimSpace(out), "\n")
 	return lines, nil
 }

@@ -3,7 +3,6 @@ package affversion
 import (
 	"fmt"
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -47,11 +46,11 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 	logger.SetLevel(logrus.InfoLevel)
 
 	// get images list(old -> new)
-	outStream, errStream, err := nanoshlib.Exec(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " ls " + config.DBMS, -1)
+	out, err := execCmd(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " ls " + config.DBMS)
 	if err != nil {
-		panic("[AffDBDeployer]dbdeployer ls "+config.DBMS+" error" + err.Error() + ": " + errStream)
+		panic("[AffDBDeployer]dbdeployer ls "+config.DBMS+" error" + err.Error() + ": " + out)
 	}
-	images := strings.Split(strings.TrimSpace(outStream), "\n")
+	images := strings.Split(strings.TrimSpace(out), "\n")
 	images = images[1:]
 
 	// cut newestImage-oldestImage
@@ -106,11 +105,13 @@ func AffDBDeployer(dbDeployerPath string, dbJsonPath string, config *task.TaskPo
 		logger.Info("image ", i, ": ", image)
 		logger.Info("**************************************************")
 		logger.Info("dbdeployer:")
-		err := nanoshlib.ExecStd(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " run " + config.DBMS + " " + image + " " +portStr, -1)
+		out, err := execCmd(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " run " + config.DBMS + " " + image + " " +portStr)
 		if err != nil {
-			logger.Warn("[AffDBDeployer]dbdeployer run " + config.DBMS + " " + image + " " + portStr + " error")
+			logger.Warn("[AffDBDeployer]dbdeployer run " + config.DBMS + " " + image + " " + portStr + " error: " + out)
 			deployErrSkip = append(deployErrSkip, i)
 			continue
+		} else {
+			fmt.Println(out)
 		}
 		logger.Info("**************************************************")
 		logger.Info("affversionpool:")

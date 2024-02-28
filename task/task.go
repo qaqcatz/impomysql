@@ -7,11 +7,11 @@ import (
 	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/mutation/stage1"
 	"github.com/qaqcatz/impomysql/mutation/stage2"
-	"github.com/qaqcatz/nanoshlib"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -264,9 +264,10 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 			" --seed "+strconv.FormatInt(config.Seed, 10)+
 			" -B "
 		logger.Info(" randgan cmd: ", randGenCmd)
-		_, errStream, err := nanoshlib.Exec(randGenCmd, -1)
+		cmd := exec.Command("/bin/bash", "-c", randGenCmd)
+		out, err := cmd.CombinedOutput()
 		if err != nil {
-			logger.Error("randgen error: ", err, ": ", errStream)
+			logger.Error("randgen error: ", err, ": ", out)
 			return nil, errors.Wrap(err, "randgen error")
 		}
 

@@ -6,7 +6,6 @@ import (
 	"github.com/qaqcatz/impomysql/connector"
 	"github.com/qaqcatz/impomysql/mutation/oracle"
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/nanoshlib"
 	"io/ioutil"
 	"os"
 	"path"
@@ -86,24 +85,24 @@ func CheckStableTask(config *task.TaskConfig, publicConn *connector.Connector, e
 			return err
 		}
 		if ck {
-			_, errStream, err := nanoshlib.Exec("cp " + bugJsonPath + " " + mayStablePath, -1)
+			out, err := execCmd("cp " + bugJsonPath + " " + mayStablePath)
 			if err != nil {
-				return errors.New("[CheckStableTask]cp stable bug json error: " + errStream)
+				return errors.New("[CheckStableTask]cp stable bug json error: " + out)
 			}
-			_, errStream, err = nanoshlib.Exec("cp " + bugLogPath + " " + mayStablePath, -1)
+			out, err = execCmd("cp " + bugLogPath + " " + mayStablePath)
 			if err != nil {
-				return errors.New("[CheckStableTask]cp stable bug log error: " + errStream)
+				return errors.New("[CheckStableTask]cp stable bug log error: " + out)
 			}
 		} else {
 			// temp print
 			fmt.Println("unstable bug: ", config.TaskId, " ", bugJsonPath)
-			_, errStream, err := nanoshlib.Exec("cp " + bugJsonPath + " " + unStablePath, -1)
+			out, err := execCmd("cp " + bugJsonPath + " " + unStablePath)
 			if err != nil {
-				return errors.New("[CheckStableTask]cp unstable bug json error: " + errStream)
+				return errors.New("[CheckStableTask]cp unstable bug json error: " + out)
 			}
-			_, errStream, err = nanoshlib.Exec("cp " + bugLogPath + " " + unStablePath, -1)
+			out, err = execCmd("cp " + bugLogPath + " " + unStablePath)
 			if err != nil {
-				return errors.New("[CheckStableTask]cp unstable bug log error: " + errStream)
+				return errors.New("[CheckStableTask]cp unstable bug log error: " + out)
 			}
 		}
 	}

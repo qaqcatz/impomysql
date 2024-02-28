@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/qaqcatz/impomysql/task"
-	"github.com/qaqcatz/nanoshlib"
 	"io/ioutil"
 	"os"
 	"path"
@@ -65,11 +64,11 @@ func AffClassify(dbDeployerPath string, dbJsonPath string, config *task.TaskPool
 	defer affVersionDB.Close()
 
 	// get images list(old -> new)
-	outStream, errStream, err := nanoshlib.Exec(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " ls " + config.DBMS, -1)
+	out, err := execCmd(dbDeployerAbsPath + " -cfg " + dbJsonAbsPath + " ls " + config.DBMS)
 	if err != nil {
-		panic("[AffClassify]dbdeployer ls "+config.DBMS+" error" + err.Error() + ": " + errStream)
+		panic("[AffClassify]dbdeployer ls "+config.DBMS+" error" + err.Error() + ": " + out)
 	}
-	images := strings.Split(strings.TrimSpace(outStream), "\n")
+	images := strings.Split(strings.TrimSpace(out), "\n")
 	images = images[1:]
 
 	// gen order map, the larger the value, the newer the version
@@ -226,20 +225,20 @@ func AffClassify(dbDeployerPath string, dbJsonPath string, config *task.TaskPool
 
 			// cp ddl
 			ddlPath := path.Join(taskPath, "output.data.sql")
-			_, errStream, err := nanoshlib.Exec("cp "+ddlPath+" "+vPath, -1)
+			out, err := execCmd("cp "+ddlPath+" "+vPath)
 			if err != nil {
-				panic("[AffClassify]cp ddl error: " + errStream)
+				panic("[AffClassify]cp ddl error: " + out)
 			}
 			// cp bug json
-			_, errStream, err = nanoshlib.Exec("cp "+firstBugJsonPath+" "+vPath, -1)
+			out, err = execCmd("cp "+firstBugJsonPath+" "+vPath)
 			if err != nil {
-				panic("[AffClassify]cp bug json error: " + errStream)
+				panic("[AffClassify]cp bug json error: " + out)
 			}
 			// cp bug log
 			firstBugLogPath := firstBugJsonPath[0:len(firstBugJsonPath)-5]+".log"
-			_, errStream, err = nanoshlib.Exec("cp "+firstBugLogPath+" "+vPath, -1)
+			out, err = execCmd("cp "+firstBugLogPath+" "+vPath)
 			if err != nil {
-				panic("[AffClassify]cp bug log error: " + errStream)
+				panic("[AffClassify]cp bug log error: " + out)
 			}
 		} else {
 			panic("[AffClassify]can not found " + o1v)
