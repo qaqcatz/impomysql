@@ -267,7 +267,7 @@ func RunTask(config *TaskConfig, publicConn *connector.Connector, publicLogger *
 		cmd := exec.Command("/bin/bash", "-c", randGenCmd)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			logger.Error("randgen error: ", err, ": ", out)
+			logger.Error("randgen error: ", err, ": ", string(out))
 			return nil, errors.Wrap(err, "randgen error")
 		}
 
